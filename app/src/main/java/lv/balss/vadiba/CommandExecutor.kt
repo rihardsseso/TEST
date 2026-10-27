@@ -233,7 +233,13 @@ class CommandExecutor(private val activity: Activity) {
         val apps = loadApps()
         val match = FuzzyMatcher.best(name, apps) { it.label }
         if (match != null && match.second >= 0.9) return launchApp(match.first)
-        AppNames.intentFor(name)?.let { return launch(it, s(R.string.r_opening, spoken), reopen = true) }
+        AppNames.intentFor(name)?.let { intent ->
+            try {
+                return launch(intent, s(R.string.r_opening, spoken), reopen = true)
+            } catch (e: ActivityNotFoundException) {
+                // No default app for this kind on the phone; try the app labels below.
+            }
+        }
         if (!strict && match != null && match.second >= APP_THRESHOLD) return launchApp(match.first)
         return null
     }
