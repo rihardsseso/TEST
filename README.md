@@ -64,3 +64,8 @@ ir tīrs Kotlin kods ar vienībtestiem.
 Katrs `push` uz GitHub uzbūvē APK (GitHub Actions) un publicē to kā laidienu `latest`.
 APK ir parakstīts ar repozitorijā esošo atkļūdošanas atslēgu (`keystore/debug.keystore`), lai jaunas versijas
 varētu instalēt pāri vecajām. Tā ir publiska atslēga — izplatīšanai Google Play vajadzētu savu, slepenu atslēgu.
+
+## Arī šajā repozitorijā
+
+- **[Kalendāra logrīks](calendar-widget/README.md)** — caurspīdīgs Google kalendāra logrīks Windows
+  datoram (`KalendaraLogriks.exe`) ar pieslēgšanos Google kontam un atsevišķu caurspīdīgumu katram notikumam.

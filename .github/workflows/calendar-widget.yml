@@ -1,0 +1,61 @@
+name: Build Calendar Widget (Windows)
+
+on:
+  push:
+    paths:
+      - "calendar-widget/**"
+      - ".github/workflows/calendar-widget.yml"
+  pull_request:
+    paths:
+      - "calendar-widget/**"
+      - ".github/workflows/calendar-widget.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: calendar-widget-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: calendar-widget
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: calendar-widget/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build portable exe
+        run: npx electron-builder --win portable --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KalendaraLogriks-exe
+          path: calendar-widget/dist/KalendaraLogriks.exe
+
+      - name: Publish as release "kalendars-latest"
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete kalendars-latest --yes --cleanup-tag || true
+          gh release create kalendars-latest dist/KalendaraLogriks.exe \
+            --target "$GITHUB_SHA" \
+            --title "Kalendāra logrīks (Windows)" \
+            --notes "Lejupielādē KalendaraLogriks.exe un palaid to — instalēšana nav vajadzīga. Uzbūvēts no ${GITHUB_REF_NAME} (${GITHUB_SHA::7})." \
+            --latest=false

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <title>Kalendāra logrīks</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="frame">
+    <header id="titlebar">
+      <div class="title">
+        <span id="today-label">Kalendārs</span>
+        <span id="status" class="muted"></span>
+      </div>
+      <div class="buttons">
+        <button id="btn-refresh" title="Atjaunot" class="icon hidden">⟳</button>
+        <button id="btn-pin" title="Vienmēr virspusē" class="icon">📌</button>
+        <button id="btn-settings" title="Iestatījumi" class="icon hidden">⚙</button>
+        <button id="btn-min" title="Minimizēt" class="icon">–</button>
+        <button id="btn-close" title="Aizvērt" class="icon">✕</button>
+      </div>
+    </header>
+
+    <main id="content">
+      <!-- 1. solis: Google OAuth klients -->
+      <section id="view-setup" class="view hidden">
+        <h2>Google konta savienošana</h2>
+        <p class="muted">Lai logrīks varētu lasīt tavu kalendāru, vienreiz jāizveido bezmaksas
+          Google OAuth klients (instrukcija README failā vai saitē zemāk).</p>
+        <button id="btn-import" class="primary wide">Ielādēt client_secret…json failu</button>
+        <p class="muted center">vai ievadi manuāli</p>
+        <label>Client ID
+          <input id="in-client-id" type="text" spellcheck="false" placeholder="….apps.googleusercontent.com">
+        </label>
+        <label>Client secret
+          <input id="in-client-secret" type="password" spellcheck="false" placeholder="GOCSPX-…">
+        </label>
+        <button id="btn-save-client" class="wide">Saglabāt</button>
+        <p id="setup-error" class="error"></p>
+        <a href="#" id="link-console" class="small">Atvērt Google Cloud Console ↗</a>
+      </section>
+
+      <!-- 2. solis: pieslēgšanās -->
+      <section id="view-login" class="view hidden">
+        <div class="login-box">
+          <div class="big-icon">📅</div>
+          <h2>Kalendāra logrīks</h2>
+          <p class="muted">Pieslēdzies ar savu Google kontu, lai redzētu savus notikumus.</p>
+          <button id="btn-signin" class="google">
+            <span class="g">G</span> Pieslēgties ar Google
+          </button>
+          <p id="login-msg" class="muted small"></p>
+          <p id="login-error" class="error"></p>
+          <a href="#" id="link-change-client" class="small">Mainīt Google OAuth klientu</a>
+        </div>
+      </section>
+
+      <!-- 3. Kalendārs -->
+      <section id="view-agenda" class="view hidden">
+        <div id="agenda"></div>
+        <p id="agenda-error" class="error"></p>
+      </section>
+    </main>
+
+    <!-- Iestatījumi -->
+    <aside id="settings" class="panel hidden">
+      <div class="panel-head">
+        <h3>Iestatījumi</h3>
+        <button id="btn-settings-close" class="icon" title="Aizvērt">✕</button>
+      </div>
+
+      <div class="group">
+        <div class="row between">
+          <span>Konts</span>
+          <span id="set-email" class="muted ellipsis"></span>
+        </div>
+        <button id="btn-signout" class="wide">Izrakstīties</button>
+      </div>
+
+      <div class="group">
+        <h4>Caurspīdīgums</h4>
+        <label>Fona caurspīdīgums <output id="out-bg"></output>
+          <input id="set-bg" type="range" min="0" max="100" step="1">
+        </label>
+        <label>Notikumu caurspīdīgums (noklusējums) <output id="out-ev"></output>
+          <input id="set-ev" type="range" min="0" max="90" step="1">
+        </label>
+        <p class="muted small">Katram notikumam savu caurspīdīgumu var iestatīt, uzklikšķinot uz tā.</p>
+        <button id="btn-reset-overrides" class="wide">Atiestatīt individuālos iestatījumus (<span id="override-count">0</span>)</button>
+      </div>
+
+      <div class="group">
+        <h4>Izskats</h4>
+        <label>Tēma
+          <select id="set-theme">
+            <option value="dark">Tumša</option>
+            <option value="light">Gaiša</option>
+          </select>
+        </label>
+        <label>Rādīt dienas
+          <select id="set-days">
+            <option value="1">1 diena</option>
+            <option value="3">3 dienas</option>
+            <option value="7">7 dienas</option>
+            <option value="14">14 dienas</option>
+            <option value="30">30 dienas</option>
+          </select>
+        </label>
+        <label class="check"><input id="set-top" type="checkbox"> Vienmēr virs citiem logiem</label>
+        <label class="check"><input id="set-autostart" type="checkbox"> Palaist kopā ar Windows</label>
+      </div>
+
+      <div class="group">
+        <h4>Kalendāri</h4>
+        <div id="set-calendars"></div>
+      </div>
+
+      <div class="group">
+        <a href="#" id="link-change-client2" class="small">Mainīt Google OAuth klientu</a>
+      </div>
+    </aside>
+
+    <!-- Notikuma logs -->
+    <div id="popover" class="panel popover hidden" role="dialog">
+      <div class="panel-head">
+        <span id="pop-color" class="dot"></span>
+        <h3 id="pop-title"></h3>
+        <button id="btn-pop-close" class="icon" title="Aizvērt">✕</button>
+      </div>
+      <p id="pop-when" class="muted"></p>
+      <p id="pop-where" class="muted"></p>
+      <p id="pop-cal" class="muted small"></p>
+      <label>Šī notikuma caurspīdīgums <output id="out-pop"></output>
+        <input id="pop-range" type="range" min="0" max="90" step="1">
+      </label>
+      <label class="check hidden" id="pop-series-wrap"><input id="pop-series" type="checkbox"> Visiem šī atkārtotā notikuma datumiem</label>
+      <div class="row">
+        <button id="btn-pop-reset">Noklusējums</button>
+        <button id="btn-pop-open" class="primary">Atvērt Google kalendārā ↗</button>
+      </div>
+    </div>
+
+    <div id="grip" title="Mainīt izmēru"></div>
+  </div>
+
+  <script src="agenda.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "name": "kalendara-logriks",
+  "productName": "Kalendāra logrīks",
+  "version": "1.0.0",
+  "description": "Google kalendāra darbvirsmas logrīks ar caurspīdīgumu",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "lv.rihardsseso.kalendara-logriks",
+    "productName": "Kalendara logriks",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.png"
+    },
+    "portable": {
+      "artifactName": "KalendaraLogriks.exe"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}
