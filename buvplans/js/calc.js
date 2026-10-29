@@ -11,7 +11,7 @@ export function roomOpenings(floor, room) {
   const res = [];
   for (const o of floor.openings) {
     const w = floor.walls.find((x) => x.id === o.wallId);
-    if (!w) continue;
+    if (!w || w.status === 'demolish') continue;
     const c = wallPoint(w, o.pos), n = wallNormal(w), off = w.thickness / 2 + 2;
     if (pointInPolygon(add(c, mul(n, off)), room.points) || pointInPolygon(add(c, mul(n, -off)), room.points)) res.push(o);
   }
@@ -51,8 +51,17 @@ export function roomStats(floor, room) {
 
 export function floorStats(floor) {
   const rooms = floor.rooms.map((r) => roomStats(floor, r));
-  let wallLen = 0, wallVol = 0;
+  let wallLen = 0, wallVol = 0, demLen = 0, demVol = 0, newLen = 0, newArea = 0;
   for (const w of floor.walls) {
+    if (w.status === 'demolish') {
+      demLen += wallLength(w);
+      demVol += wallLength(w) * w.height * w.thickness;
+      continue;
+    }
+    if (w.status === 'new') {
+      newLen += wallLength(w);
+      newArea += wallLength(w) * w.height;
+    }
     const L = wallLength(w);
     wallLen += L;
     const ops = floor.openings.filter((o) => o.wallId === w.id);
@@ -76,6 +85,13 @@ export function floorStats(floor) {
       sockets: floor.items.filter((it) => byKind(it.kind)?.electric === 'socket').length,
       switches: floor.items.filter((it) => byKind(it.kind)?.electric === 'switch').length,
       lights: floor.items.filter((it) => byKind(it.kind)?.electric === 'light').length,
+      weak: floor.items.filter((it) => byKind(it.kind)?.electric === 'weak').length,
+      water: floor.items.filter((it) => byKind(it.kind)?.water).length,
+      demolishLength: m(demLen),
+      demolishVolume: demVol / 1e6,
+      newLength: m(newLen),
+      newArea: m2(newArea),
+      wireLength: m((floor.wires || []).reduce((s, wr) => s + wr.points.reduce((q, p, i) => (i ? q + Math.hypot(p.x - wr.points[i - 1].x, p.y - wr.points[i - 1].y) : 0), 0), 0)),
     },
   };
 }

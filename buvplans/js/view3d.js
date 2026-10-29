@@ -96,7 +96,8 @@ export class View3D {
     disposeGroup(this.root);
     this.root.clear();
     const p = this.store.project, cur = this.store.floor;
-    const floors = this.options.allFloors ? p.floors.filter((f) => !f.variant || f.id === cur.id) : [cur];
+    // Katram stāvam rāda tā pamatvariantu; aktīvajam stāvam — atvērto variantu.
+    const floors = this.options.allFloors ? p.floors.filter((f) => ((f.group || f.id) === (cur.group || cur.id) ? f.id === cur.id : !f.variant)) : [cur];
     for (const f of floors) this.root.add(this.buildFloor(f, this.options.allFloors ? f.elevation : 0));
     const box = new THREE.Box3().setFromObject(this.root);
     if (!this.ground) {
@@ -146,7 +147,7 @@ export class View3D {
     const wallH = (w) => (this.options.cutWalls ? Math.min(w.height, 110) : w.height);
     for (const w of f.walls) {
       const L = wallLength(w);
-      if (L < 1) continue;
+      if (L < 1 || w.status === 'demolish') continue;
       const H = wallH(w);
       const color = wallColor(f, w);
       const ops = f.openings.filter((o) => o.wallId === w.id).sort((a, b) => a.pos - b.pos);

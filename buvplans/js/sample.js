@@ -22,6 +22,9 @@ export function sampleProject() {
   const midBot = W(500, 420, 500, 700, 12);
   const hor = W(0, 420, 900, 420, 12);
   const bathW = W(300, 420, 300, 700, 12);
+  // Remonta ieceres: vecā virtuves starpsiena tiek nojaukta, vannas istabas siena ir jauna.
+  W(700, 420, 700, 560, 12).status = 'demolish';
+  Object.assign(bathW, { status: 'new', kind: 'partition', thickness: 10 });
 
   const O = (type, wall, pos, opts) => f.openings.push(makeOpening(type, wall.id, pos, opts));
   O('window', top, 250, { width: 180 });
@@ -98,11 +101,31 @@ export function sampleProject() {
   I('socket', 300, 21, 0);
   I('socket', 509, 160, 270);
   I('socket', 882, 200, 90);
-  I('socket', 600, 432, 0);
-  I('socket', 650, 432, 0);
+  I('socket2', 600, 432, 0);
+  I('socket2', 650, 432, 0);
+  I('socketTV', 240, 18, 0);
+  I('socketNet', 820, 382, 180);
+  I('sconce', 590, 21, 0);
+  I('sconce', 810, 21, 0);
+  // Apkure
+  I('radiator', 250, 20, 0);
+  I('radiator', 20, 200, 270);
+  I('radiator', 880, 560, 90);
+  I('towel', 290, 620, 90);
+  // Ūdensapgāde
+  I('wcold', 150, 429, 0);
+  I('whot', 172, 429, 0);
+  I('sewer', 18, 470, 270);
+  I('wcold', 690, 682, 180);
+  I('whot', 712, 682, 180);
+  I('sewer', 260, 682, 180);
+  // Elektroinstalācija
+  I('panel', 312, 650, 270);
+  I('junction', 330, 460, 0);
+  f.wires.push({ id: uid(), color: '#d93025', points: [{ x: 312, y: 650 }, { x: 330, y: 650 }, { x: 330, y: 460 }] });
+  f.wires.push({ id: uid(), color: '#d93025', points: [{ x: 330, y: 460 }, { x: 345, y: 460 }, { x: 345, y: 432 }] });
+  f.wires.push({ id: uid(), color: '#2f6fd6', points: [{ x: 330, y: 460 }, { x: 330, y: 400 }, { x: 250, y: 400 }, { x: 250, y: 150 }] });
 
-  f.dims.push({ id: uid(), a: { x: 0, y: -15 }, b: { x: 900, y: -15 }, offset: -45 });
-  f.dims.push({ id: uid(), a: { x: 915, y: 0 }, b: { x: 915, y: 700 }, offset: -45 });
   f.labels.push({ id: uid(), x: 400, y: 760, text: 'Ieeja', size: 14 });
   return p;
 }

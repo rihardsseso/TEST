@@ -1,21 +1,18 @@
 // PDF albums: lapas ar plāniem, sienu skatiem, aprēķiniem un specifikāciju, noformētas ar zīmoga lauku.
-import { renderFloorImage } from './draw2d.js';
+import { renderFloorImage, THEME } from './draw2d.js';
+import { stageById } from './stages.js';
+import { byKind } from './catalog.js';
 import { floorStats, specification, openingSchedule, fmt } from './calc.js';
 import { roomElevations, elevationSVG } from './elevations.js';
 import { statusLabel } from './model.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// Drukai vienmēr gaiša palete neatkarīgi no ekrāna tēmas.
-export const PRINT_THEME = {
-  bg: '#ffffff', grid: '#eef0f2', gridMajor: '#dfe3e7', wall: '#3a3f46', wallEdge: '#1d2126', ink: '#1d2126',
-  muted: '#5b636c', accent: '#2457c5', accentSoft: 'rgba(36,87,197,0.12)', glass: '#d6e9f5', dim: '#2457c5',
-  itemStroke: '#3a3f46', roomAlpha: 0.32, font: '"IBM Plex Sans", system-ui, sans-serif', mono: '"IBM Plex Mono", ui-monospace, monospace',
-};
+export const PRINT_THEME = THEME;
 
 export const SHEET_TYPES = [
   { id: 'cover', name: 'Titullapa' },
-  { id: 'plans', name: 'Plāni ar izmēriem' },
+  { id: 'plans', name: 'Plāni pa stadijām' },
   { id: 'rooms', name: 'Telpu eksplikācija' },
   { id: 'visual', name: '3D vizualizācija' },
   { id: 'elev', name: 'Sienu skati' },
@@ -28,9 +25,24 @@ export function buildAlbum(project, { enabled, units = 'cm', snapshot }) {
   const floors = project.floors;
   const date = new Date().toLocaleDateString('lv-LV');
   if (enabled.has('plans')) {
+    const cats = (f, list) => f.items.some((it) => list.includes(byKind(it.kind)?.cat));
     for (const f of floors) {
-      const img = renderFloorImage(f, PRINT_THEME, { width: 1500, height: 1000, units });
-      sheets.push({ title: `${f.name} — plāns`, body: `<img class="sheet-img" src="${img}" alt="${esc(f.name)} plāns">`, note: `Izmēri ${units === 'mm' ? 'mm' : units === 'm' ? 'm' : 'cm'}` });
+      const plans = [
+        ['base', 'esošā situācija', true],
+        ['demolish', 'demontāžas plāns', f.walls.some((w) => w.status === 'demolish')],
+        ['partitions', 'starpsienu plāns', f.walls.some((w) => w.status === 'new')],
+        ['rooms', 'grīdu segumi', f.rooms.length > 0],
+        ['furniture', 'mēbeļu plāns', cats(f, ['living', 'bedroom', 'kitchen', 'other'])],
+        ['water', 'santehnika un ūdensapgāde', cats(f, ['bath', 'water'])],
+        ['heating', 'apkures plāns', cats(f, ['heating'])],
+        ['wiring', 'elektrības plāns', cats(f, ['sockets', 'switches', 'lighting', 'wiring']) || f.wires?.length],
+      ];
+      for (const [id, title, has] of plans) {
+        if (!has) continue;
+        const stage = id === 'water' ? { ...stageById('water'), show: ['bath'] } : stageById(id);
+        const img = renderFloorImage(f, PRINT_THEME, { width: 1500, height: 1000, units, stage });
+        sheets.push({ title: `${f.name} — ${title}`, body: `<img class="sheet-img" src="${img}" alt="${esc(f.name)} ${title}">`, note: `Izmēri ${units === 'mm' ? 'mm' : units === 'm' ? 'm' : 'cm'}` });
+      }
     }
   }
   if (enabled.has('rooms')) {

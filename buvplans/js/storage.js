@@ -72,10 +72,11 @@ function roomArea(pts) {
 export function validateProject(p) {
   if (!p || typeof p !== 'object' || !Array.isArray(p.floors) || !p.floors.length) throw new Error('Failā nav Būvplāna projekta.');
   for (const f of p.floors) {
-    for (const k of ['walls', 'openings', 'rooms', 'items', 'dims', 'labels']) if (!Array.isArray(f[k])) f[k] = [];
+    for (const k of ['walls', 'openings', 'rooms', 'items', 'dims', 'labels', 'wires']) if (!Array.isArray(f[k])) f[k] = [];
     if (typeof f.height !== 'number') f.height = 270;
     if (typeof f.elevation !== 'number') f.elevation = 0;
     if (!f.id) f.id = Math.random().toString(36).slice(2, 10);
+    if (!f.group) f.group = f.id;
     if (!f.name) f.name = 'Stāvs';
   }
   if (!p.id) p.id = Math.random().toString(36).slice(2, 10);

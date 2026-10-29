@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { polygonArea, insetPolygon, pointInPolygon, interiorPoint, segmentIntersection } from '../js/geometry.js';
-import { newFloor, makeWall, makeOpening, moveJoint, clampOpening, segmentCovered } from '../js/model.js';
-import { findFaces, detectRooms, syncRooms } from '../js/rooms.js';
+import { newFloor, newProject, makeWall, makeOpening, moveJoint, clampOpening, segmentCovered, Store } from '../js/model.js';
+import { findFaces, detectRooms, syncRooms, keepRoomsInSync } from '../js/rooms.js';
 import { roomStats, floorStats, specification, statsCSV } from '../js/calc.js';
 import { roomElevations, elevationSVG } from '../js/elevations.js';
 import { sampleProject } from '../js/sample.js';
@@ -117,4 +117,30 @@ test('sienu skati: katrai telpas sienai ir skats ar ailēm', () => {
   }
   const svg = elevationSVG(els[0]);
   assert.ok(svg.startsWith('<svg') && svg.endsWith('</svg>'));
+});
+
+test('grīda seko sienām: pārvietojot vai dzēšot sienu, telpa mainās, iestatījumi paliek', () => {
+  const store = new Store(newProject());
+  keepRoomsInSync(store);
+  store.commit((f) => box(f, 0, 0, 400, 300, 20));
+  assert.equal(store.floor.rooms.length, 1);
+  store.commit((f) => Object.assign(f.rooms[0], { name: 'Virtuve', floorFinish: 'tile' }));
+  const before = polygonArea(store.floor.rooms[0].points);
+  store.commit((f) => moveJoint(f, { x: 400, y: 0 }, { x: 600, y: 0 }));
+  store.commit((f) => moveJoint(f, { x: 400, y: 300 }, { x: 600, y: 300 }));
+  const room = store.floor.rooms[0];
+  assert.equal(room.name, 'Virtuve');
+  assert.equal(room.floorFinish, 'tile');
+  assert.equal(Math.round(polygonArea(room.points) / 1e4 * 100) / 100, 5.8 * 2.8);
+  assert.ok(polygonArea(room.points) > before);
+  // Starpsiena sadala grīdu divās telpās; pirmā saglabā iestatījumus.
+  store.commit((f) => f.walls.push(makeWall({ x: 300, y: 0 }, { x: 300, y: 300 }, 10)));
+  assert.equal(store.floor.rooms.length, 2);
+  assert.ok(store.floor.rooms.some((r) => r.name === 'Virtuve'));
+  // Atverot kontūru, grīdas vairs nav.
+  store.commit((f) => { f.walls = f.walls.filter((w) => !(w.a.x === 0 && w.b.x === 0)); });
+  assert.ok(store.floor.rooms.every((r) => r.points.every((p) => p.x > 100)));
+  // Atsaukšana atjauno sienas un grīdu.
+  store.undo();
+  assert.equal(store.floor.rooms.length, 2);
 });

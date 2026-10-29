@@ -2,12 +2,18 @@
 // Izmēri cm: w – platums, d – dziļums, h – augstums, elev – augstums no grīdas.
 
 export const CATEGORIES = [
-  { id: 'living', name: 'Dzīvojamā' },
+  { id: 'building', name: 'Ēkas elementi' },
+  { id: 'heating', name: 'Apkure' },
+  { id: 'living', name: 'Dzīvojamā istaba' },
   { id: 'bedroom', name: 'Guļamistaba' },
   { id: 'kitchen', name: 'Virtuve' },
+  { id: 'other', name: 'Dekors' },
   { id: 'bath', name: 'Santehnika' },
-  { id: 'electric', name: 'Elektrība' },
-  { id: 'other', name: 'Citi' },
+  { id: 'water', name: 'Ūdensapgāde' },
+  { id: 'sockets', name: 'Rozetes' },
+  { id: 'switches', name: 'Slēdži' },
+  { id: 'lighting', name: 'Apgaismojums' },
+  { id: 'wiring', name: 'Elektroinstalācija' },
 ];
 
 // 2D zīmēšana notiek lokālajās koordinātās: centrs (0,0), x ∈ [-w/2, w/2], y ∈ [-d/2, d/2],
@@ -145,6 +151,74 @@ const draw = {
     C(c, 0, 0, w / 2);
     C(c, 0, 0, w / 5);
   },
+  socket2(c, w, d) {
+    for (const x of [-w / 4, w / 4]) {
+      c.beginPath(); c.arc(x, d / 2 - w / 4, w / 4, Math.PI, 0); c.closePath(); c.fill(); c.stroke();
+    }
+    L(c, -w / 4, -d / 2, -w / 4, d / 2 - w / 4);
+    L(c, w / 4, -d / 2, w / 4, d / 2 - w / 4);
+  },
+  socketTV(c, w, d) {
+    draw.socket(c, w, d);
+    L(c, -w / 2, -d / 2, w / 2, -d / 2);
+  },
+  socketNet(c, w, d) {
+    draw.socket(c, w, d);
+    L(c, -w / 2, d / 2 - w / 2, 0, -d / 2, w / 2, d / 2 - w / 2);
+  },
+  switch2(c, w, d) {
+    C(c, 0, d * 0.15, w * 0.32);
+    L(c, w * 0.1, d * 0.0, w * 0.35, -d / 2);
+    L(c, -w * 0.1, d * 0.0, -w * 0.35, -d / 2);
+  },
+  switchPass(c, w, d) {
+    C(c, 0, 0, w * 0.32);
+    L(c, -w * 0.5, d / 2, w * 0.5, -d / 2);
+  },
+  sconce(c, w, d) {
+    c.beginPath(); c.arc(0, -d / 2, w / 2, 0, Math.PI); c.closePath(); c.fill(); c.stroke();
+    L(c, -w / 2, -d / 2, w / 2, -d / 2);
+  },
+  chandelier(c, w) {
+    C(c, 0, 0, w * 0.12);
+    for (let a = 0; a < 6; a++) {
+      const r = (a * Math.PI) / 3;
+      L(c, Math.cos(r) * w * 0.12, Math.sin(r) * w * 0.12, Math.cos(r) * w * 0.36, Math.sin(r) * w * 0.36);
+      C(c, Math.cos(r) * w * 0.42, Math.sin(r) * w * 0.42, w * 0.08);
+    }
+  },
+  towel(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    for (let x = -w / 2 + w / 4; x < w / 2; x += w / 4) L(c, x, -d / 2, x, d / 2);
+  },
+  boiler(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    C(c, 0, 0, Math.min(w, d) * 0.3);
+  },
+  manifold(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    for (let x = -w / 2 + 8; x < w / 2; x += 10) C(c, x, 0, Math.min(3, d / 3));
+  },
+  water(c, w, d, it) {
+    C(c, 0, 0, w / 2);
+    const letter = { wcold: 'A', whot: 'K', sewer: 'N' }[it?.kind] || '';
+    c.save();
+    c.fillStyle = c.strokeStyle;
+    c.font = `600 ${w * 0.7}px sans-serif`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(letter, 0, w * 0.04);
+    c.restore();
+  },
+  junction(c, w) {
+    C(c, 0, 0, w / 2);
+    L(c, -w * 0.35, -w * 0.35, w * 0.35, w * 0.35);
+  },
+  panel(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    c.beginPath(); c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, d / 2); c.lineTo(-w / 2, d / 2); c.closePath();
+    const f = c.fillStyle; c.fillStyle = c.strokeStyle; c.fill(); c.fillStyle = f;
+  },
 };
 
 // 3D modeļi tiek būvēti no kastēm; `part(x, y, z, w, h, d, color)` — centrs cm lokālajās koordinātās
@@ -183,6 +257,8 @@ const build = {
       [0, 55, -d / 2 + 4, w, 110, 8, 'dark'],
     ];
   },
+  chandelier: (it) => [[0, it.h / 2, 0, it.w, it.h * 0.6, it.w, 'white', 'sphere', 'light']],
+  sconce: (it) => [[0, 0, -it.d / 4, it.w, it.h, it.d / 2, 'white', 'sphere', 'light']],
   plant: (it) => [[0, 15, 0, it.w * 0.5, 30, it.w * 0.5, 'pot', 'cyl'], [0, 30 + (it.h - 30) / 2, 0, it.w, it.h - 30, it.w, null, 'sphere']],
   light: (it) => [[0, 0, 0, it.w, it.w * 0.6, it.w, 'white', 'sphere', 'light']],
   spot: (it) => [[0, 0, 0, it.w, 3, it.w, 'white', 'cyl', 'light']],
@@ -224,14 +300,29 @@ export const CATALOG = [
   item('wc', 'Tualetes pods', 'bath', 40, 65, 80, '#f4f6f8', 'toilet'),
   item('basin', 'Izlietne', 'bath', 60, 48, 85, '#f4f6f8', 'basin'),
   item('washer', 'Veļas mašīna', 'bath', 60, 60, 85, '#eef0f2', 'washer'),
-  item('radiator', 'Radiators', 'bath', 80, 10, 60, '#f0f0f0', 'radiator', { elev: 15 }),
-  item('socket', 'Rozete', 'electric', 10, 6, 8, '#ffffff', 'socket', { elev: 30, electric: 'socket' }),
-  item('switch', 'Slēdzis', 'electric', 10, 6, 8, '#ffffff', 'switch', { elev: 90, electric: 'switch' }),
-  item('light', 'Griestu lampa', 'electric', 40, 40, 25, '#fff3c4', 'light', { elev: 230, electric: 'light' }),
-  item('spot', 'Iebūvējamais gaismeklis', 'electric', 12, 12, 3, '#fff3c4', 'spot', { elev: 267, electric: 'light' }),
+  item('wcold', 'Aukstā ūdens izvads', 'water', 10, 6, 8, '#d9e8fb', 'water', { elev: 60, water: 'cold' }),
+  item('whot', 'Karstā ūdens izvads', 'water', 10, 6, 8, '#fbdcd9', 'water', { elev: 60, water: 'hot' }),
+  item('sewer', 'Kanalizācijas izvads', 'water', 12, 8, 12, '#e4e4e4', 'water', { elev: 40, water: 'sewer' }),
+  item('radiator', 'Radiators', 'heating', 80, 10, 60, '#f0f0f0', 'radiator', { elev: 15 }),
+  item('towel', 'Dvieļu žāvētājs', 'heating', 50, 10, 80, '#e8e8e8', 'towel', { elev: 90 }),
+  item('boiler', 'Apkures katls', 'heating', 45, 35, 75, '#f4f4f4', 'boiler', { elev: 120 }),
+  item('manifold', 'Siltās grīdas kolektors', 'heating', 60, 10, 50, '#d8d8d8', 'manifold', { elev: 30 }),
+  item('socket', 'Rozete', 'sockets', 10, 6, 8, '#ffffff', 'socket', { elev: 30, electric: 'socket' }),
+  item('socket2', 'Dubultrozete', 'sockets', 16, 6, 8, '#ffffff', 'socket2', { elev: 30, electric: 'socket' }),
+  item('socketTV', 'TV rozete', 'sockets', 10, 6, 8, '#ffffff', 'socketTV', { elev: 30, electric: 'weak' }),
+  item('socketNet', 'Datortīkla rozete', 'sockets', 10, 6, 8, '#ffffff', 'socketNet', { elev: 30, electric: 'weak' }),
+  item('switch', 'Slēdzis', 'switches', 10, 6, 8, '#ffffff', 'switch', { elev: 90, electric: 'switch' }),
+  item('switch2', 'Divu taustiņu slēdzis', 'switches', 10, 6, 8, '#ffffff', 'switch2', { elev: 90, electric: 'switch' }),
+  item('switchPass', 'Caurstaigājamais slēdzis', 'switches', 10, 6, 8, '#ffffff', 'switchPass', { elev: 90, electric: 'switch' }),
+  item('light', 'Griestu lampa', 'lighting', 40, 40, 25, '#fff3c4', 'light', { elev: 230, electric: 'light' }),
+  item('chandelier', 'Lustra', 'lighting', 70, 70, 60, '#fff3c4', 'chandelier', { elev: 200, electric: 'light' }),
+  item('spot', 'Iebūvējamais gaismeklis', 'lighting', 12, 12, 3, '#fff3c4', 'spot', { elev: 267, electric: 'light' }),
+  item('sconce', 'Sienas gaismeklis', 'lighting', 20, 12, 20, '#fff3c4', 'sconce', { elev: 180, electric: 'light' }),
+  item('junction', 'Sadales kārba', 'wiring', 10, 6, 10, '#ffffff', 'junction', { elev: 240, electric: 'box' }),
+  item('panel', 'Elektrības sadalne', 'wiring', 40, 12, 50, '#f2f2f2', 'panel', { elev: 140, electric: 'panel' }),
   item('plant', 'Augs', 'other', 45, 45, 120, '#5e8a4f', 'plant'),
-  item('stairs', 'Kāpnes', 'other', 100, 300, 270, '#b58c5e', 'stairs'),
-  item('column', 'Kolonna', 'other', 30, 30, 270, '#c8c8c8', 'box'),
+  item('stairs', 'Kāpnes', 'building', 100, 300, 270, '#b58c5e', 'stairs'),
+  item('column', 'Kolonna', 'building', 30, 30, 270, '#c8c8c8', 'box'),
 ];
 
 export const byKind = (kind) => CATALOG.find((c) => c.kind === kind);
@@ -239,8 +330,14 @@ export const byKind = (kind) => CATALOG.find((c) => c.kind === kind);
 export function drawItem2D(ctx, it) {
   const def = byKind(it.kind);
   const fn = draw[def?.sym] || draw.box;
-  fn(ctx, it.w, it.d);
+  fn(ctx, it.w, it.d, it);
 }
+
+/** Mazi sienas punkti (rozetes, slēdži, izvadi), kas ekrānā jāzīmē palielināti. */
+export const isPoint = (it) => {
+  const def = byKind(it.kind);
+  return !!(def && (def.electric || def.water) && Math.max(def.w, def.d) <= 20);
+};
 
 export function parts3D(it) {
   const def = byKind(it.kind);
@@ -249,6 +346,7 @@ export function parts3D(it) {
 }
 
 export const isElectric = (it) => byKind(it.kind)?.electric;
+export const categoryOf = (it) => byKind(it.kind)?.cat || 'other';
 
 export const FLOOR_FINISHES = [
   { id: 'parquet', name: 'Parkets', color: '#c9a477' },

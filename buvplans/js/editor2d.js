@@ -6,9 +6,10 @@ import {
   makeWall, makeOpening, wallLength, wallDir, wallNormal, wallPoint, clampOpening,
   nearestWall, moveJoint, segmentCovered, uid, DEFAULTS,
 } from './model.js';
-import { drawFloor, drawOpening, readTheme, fitView, itemDrawScale, fmtLen } from './draw2d.js';
-import { detectRooms, syncRooms } from './rooms.js';
-import { byKind, drawItem2D } from './catalog.js';
+import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen } from './draw2d.js';
+import { rebuildRooms } from './rooms.js';
+import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
+import { itemMode, wallMode } from './stages.js';
 
 export const TOOLS = {
   select: { name: 'Atlasīt', key: 'v', hint: 'Klikšķis atlasa objektu, vilkšana pārvieto. Tukšā vietā vilkšana bīda plānu.' },
@@ -18,7 +19,9 @@ export const TOOLS = {
   window: { name: 'Logs', key: 'l', hint: 'Klikšķini uz sienas, lai ievietotu logu.' },
   dim: { name: 'Izmērs', key: 'm', hint: 'Klikšķini divus punktus izmēra līnijai.' },
   text: { name: 'Teksts', key: 't', hint: 'Klikšķini, kur novietot uzrakstu.' },
-  place: { name: 'Novietot', key: null, hint: 'Klikšķini plānā, lai novietotu priekšmetu. Pie sienas tas pagriežas pats. Alt — bez piesaistes. Esc — beigt.' },
+  place: { name: 'Novietot', key: null, hint: 'Klikšķini plānā, lai novietotu priekšmetu. Pie sienas tas pagriežas pats. R — pagriezt, Alt — bez piesaistes, Esc — beigt.' },
+  demolish: { name: 'Demontēt', key: 'x', hint: 'Klikšķini uz sienas, lai atzīmētu to kā nojaucamu (sarkana). Atkārtots klikšķis atceļ.' },
+  wire: { name: 'Vads', key: 'e', hint: 'Klikšķini vada lūzuma punktus; tie pielīp rozetēm, slēdžiem un gaismekļiem. Dubultklikšķis vai Esc pabeidz.' },
 };
 
 export class Editor2D {
@@ -28,14 +31,15 @@ export class Editor2D {
     this.store = store;
     this.hooks = hooks;
     this.view = { scale: 0.6, ox: 60, oy: 60 };
-    this.settings = { grid: true, snap: true, dims: true, autoRooms: true, units: 'cm', wallThickness: DEFAULTS.wallThickness };
+    this.settings = { grid: true, snap: true, dims: true, hints: true, units: 'cm', wallThickness: 25, partitionThickness: 10 };
+    this.stage = null;
     this.tool = 'select';
     this.state = {};
     this.pointers = new Map();
     this.hover = null;
     this.cursor = null;
     this.typed = '';
-    this.theme = readTheme();
+    this.theme = THEME;
     this.bind();
     this.resize();
     new ResizeObserver(() => this.resize()).observe(canvas.parentElement);
@@ -81,7 +85,7 @@ export class Editor2D {
 
   fit() {
     if (!this.w) return;
-    this.view = fitView(this.floor, this.w, this.h, 50);
+    this.view = fitView(this.floor, this.w, this.h, 75);
     this.view.scale = Math.min(this.view.scale, 2);
     this.requestRender();
   }
@@ -94,9 +98,35 @@ export class Editor2D {
     this.requestRender();
   }
 
-  refreshTheme() {
-    this.theme = readTheme();
+  setStage(stage) {
+    this.stage = stage;
+    if (!stage.tools.includes(this.tool) && !['place', 'dim', 'text'].includes(this.tool)) this.setTool('select');
+    if (this.tool === 'place' && !stage.cats.includes(byKind(this.state.kind)?.cat)) this.setTool('select');
+    const s = this.store.selection;
+    if (s && !this.selectable(s.kind, this.store.selected())) this.store.select(null);
     this.requestRender();
+  }
+
+  /** Vai objektu var atlasīt aktīvajā stadijā. */
+  selectable(kind, obj) {
+    const st = this.stage;
+    if (!obj) return false;
+    if (!st) return true;
+    if (kind === 'items') return itemMode(st, categoryOf(obj)) === 'active';
+    if (kind === 'walls') return !!st.edit?.includes('walls') && wallMode(st, obj) !== 'hidden';
+    if (kind === 'openings') {
+      const w = this.floor.walls.find((x) => x.id === obj.wallId);
+      return !!st.edit?.includes('openings') && w && wallMode(st, w) !== 'hidden';
+    }
+    if (kind === 'rooms') return !!st.edit?.includes('rooms');
+    if (kind === 'wires') return st.wires === 'edit';
+    return true;
+  }
+
+  get newWallProps() {
+    return this.stage?.newWalls
+      ? { thickness: this.settings.partitionThickness, status: 'new', kind: 'partition' }
+      : { thickness: this.settings.wallThickness, status: 'existing' };
   }
 
   setTool(tool, extra = {}) {
@@ -129,10 +159,11 @@ export class Editor2D {
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(ctx, this.floor, this.view, this.theme, {
-      width: this.w, height: this.h, grid: this.settings.grid, dims: this.settings.dims, units: this.settings.units,
+      stage: this.stage, width: this.w, height: this.h, grid: this.settings.grid, dims: this.settings.dims, units: this.settings.units,
       selection: this.store.selection, hover: this.hover, onImage: () => this.requestRender(),
     });
     this.drawPreview(ctx);
+    this.hooks.onView?.(this.view);
   }
 
   drawPreview(ctx) {
@@ -154,7 +185,7 @@ export class Editor2D {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.lineWidth = this.settings.wallThickness * this.view.scale;
+      ctx.lineWidth = this.newWallProps.thickness * this.view.scale;
       ctx.strokeStyle = t.accent;
       ctx.globalAlpha = 0.45;
       ctx.stroke();
@@ -166,7 +197,7 @@ export class Editor2D {
     if (this.tool === 'rect' && st.start && c) {
       const a = S(st.start), b = S(c.p);
       ctx.strokeStyle = t.accent;
-      ctx.lineWidth = Math.max(2, this.settings.wallThickness * this.view.scale);
+      ctx.lineWidth = Math.max(2, this.newWallProps.thickness * this.view.scale);
       ctx.globalAlpha = 0.45;
       ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
       ctx.globalAlpha = 1;
@@ -182,6 +213,15 @@ export class Editor2D {
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
       label(b, fmtLen(dist(st.a, c.p), this.settings.units));
+    }
+    if (this.tool === 'wire' && st.points?.length && c) {
+      ctx.beginPath();
+      [...st.points, c.p].map(S).forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([7, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
     if ((this.tool === 'door' || this.tool === 'window') && st.ghost) {
       drawOpening(ctx, st.ghost.opening, st.ghost.wall, this.view, t, false, true);
@@ -260,15 +300,20 @@ export class Editor2D {
 
   // ---------- trāpījumi ----------
   hitTest(p) {
-    const f = this.floor, tol = this.tol;
+    const h = this.rawHit(p);
+    return h && this.selectable(h.kind, this.floor[h.kind].find((x) => x.id === h.id)) ? h : null;
+  }
+
+  rawHit(p) {
+    const f = this.floor, tol = this.tol, ok = (kind, obj) => this.selectable(kind, obj);
     for (const o of f.openings) {
       const w = f.walls.find((x) => x.id === o.wallId);
-      if (!w) continue;
+      if (!w || !ok('openings', o)) continue;
       const c = wallPoint(w, o.pos), d = wallDir(w);
       const pr = projectOnSegment(p, add(c, mul(d, -o.width / 2)), add(c, mul(d, o.width / 2)));
       if (pr.dist <= w.thickness / 2 + tol * 0.5) return { kind: 'openings', id: o.id };
     }
-    const items = [...f.items].sort((a, b) => Number(!!byKind(b.kind)?.electric) - Number(!!byKind(a.kind)?.electric));
+    const items = f.items.filter((it) => ok('items', it)).sort((a, b) => Number(isPoint(b)) - Number(isPoint(a)));
     for (const it of items) {
       const k = itemDrawScale(it, this.view.scale);
       const l = rotate(sub(p, it), -(it.rot || 0));
@@ -283,11 +328,19 @@ export class Editor2D {
       const pr = projectOnSegment(p, add(d.a, mul(n, d.offset || 0)), add(d.b, mul(n, d.offset || 0)));
       if (pr.dist <= tol) return { kind: 'dims', id: d.id };
     }
-    for (const w of f.walls) {
-      if (projectOnSegment(p, w.a, w.b).dist <= w.thickness / 2 + tol * 0.3) return { kind: 'walls', id: w.id };
+    for (const wr of f.wires || []) {
+      if (!ok('wires', wr)) continue;
+      for (let i = 0; i + 1 < wr.points.length; i++) {
+        if (projectOnSegment(p, wr.points[i], wr.points[i + 1]).dist <= tol) return { kind: 'wires', id: wr.id };
+      }
     }
-    for (const r of [...f.rooms].reverse()) {
-      if (pointInPolygon(p, r.points)) return { kind: 'rooms', id: r.id };
+    for (const w of f.walls) {
+      if (ok('walls', w) && projectOnSegment(p, w.a, w.b).dist <= w.thickness / 2 + tol * 0.3) return { kind: 'walls', id: w.id };
+    }
+    if (this.stage?.edit?.includes('rooms') || !this.stage) {
+      for (const r of [...f.rooms].reverse()) {
+        if (pointInPolygon(p, r.points)) return { kind: 'rooms', id: r.id };
+      }
     }
     return null;
   }
@@ -306,12 +359,14 @@ export class Editor2D {
     });
     c.addEventListener('dblclick', (e) => {
       if (this.tool === 'wall') this.finishChain();
+      else if (this.tool === 'wire') this.finishWire();
       else if (this.tool === 'select') this.hooks.onEdit?.();
       e.preventDefault();
     });
     c.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       if (this.tool === 'wall') this.finishChain();
+      else if (this.tool === 'wire') this.finishWire();
       else if (this.tool !== 'select') this.setTool('select');
     });
     c.addEventListener('wheel', (e) => {
@@ -350,6 +405,8 @@ export class Editor2D {
       case 'place': return this.placeItem(p, e.altKey);
       case 'dim': return this.clickDim(this.snap(p, { anchor: this.state.a, free }).p);
       case 'text': return this.placeText(p);
+      case 'demolish': return this.toggleDemolish(p);
+      case 'wire': return this.clickWire(this.snapWire(p, free));
     }
   }
 
@@ -385,6 +442,14 @@ export class Editor2D {
       case 'rect': case 'dim': this.cursor = this.snap(p, { anchor: this.tool === 'dim' ? this.state.a : null, free }); break;
       case 'door': case 'window': this.ghostOpening(p); break;
       case 'place': this.ghostItem(p, e.altKey); break;
+      case 'wire': this.cursor = { p: this.snapWire(p, free), snap: null }; break;
+      case 'demolish': {
+        const nw = nearestWall(this.floor, p, 30 / this.view.scale + 10);
+        const h = nw && wallMode(this.stage, nw.wall) !== 'hidden' ? { kind: 'walls', id: nw.wall.id } : null;
+        if (JSON.stringify(h) !== JSON.stringify(this.hover)) this.hover = h;
+        this.cursor = { p };
+        break;
+      }
       default: this.cursor = { p };
     }
     this.requestRender();
@@ -398,10 +463,7 @@ export class Editor2D {
       this.state.start = null;
       if (Math.abs(b.x - a.x) > 30 && Math.abs(b.y - a.y) > 30) this.createRect(a, b);
     }
-    if (this.drag?.moved && this.drag.mode !== 'pan') {
-      if (this.drag.mode === 'joint' || this.drag.kind === 'walls') syncRooms(this.floor);
-      this.store.touch();
-    }
+    if (this.drag?.moved && this.drag.mode !== 'pan') this.store.touch();
     this.drag = null;
     this.requestRender();
   }
@@ -424,6 +486,11 @@ export class Editor2D {
       return;
     }
     this.store.select(hit);
+    if (hit.kind === 'rooms') {
+      // Grīdu nevar pārvietot — tā seko sienām; vilkšana telpā bīda plānu.
+      this.drag = { mode: 'pan', sx, sy, ox: this.view.ox, oy: this.view.oy };
+      return;
+    }
     const obj = this.store.selected();
     this.drag = { mode: 'move', start: p, sx, sy, orig: JSON.parse(JSON.stringify(obj)), kind: hit.kind };
     if (hit.kind === 'walls') {
@@ -449,6 +516,7 @@ export class Editor2D {
       const to = this.snap(p, { free: e.shiftKey }).p;
       moveJoint(f, dr.from, to);
       dr.from = to;
+      rebuildRooms(f);
       this.requestRender();
       return;
     }
@@ -480,11 +548,12 @@ export class Editor2D {
         const curA = { ...obj.a }, curB = { ...obj.b };
         moveJoint(f, curA, add(ja, delta));
         moveJoint(f, curB, add(jb, delta));
+        rebuildRooms(f);
         break;
       }
       case 'labels': Object.assign(obj, add(o, delta)); break;
       case 'dims': obj.a = add(o.a, delta); obj.b = add(o.b, delta); break;
-      case 'rooms': obj.points = o.points.map((q) => add(q, delta)); break;
+      case 'wires': obj.points = o.points.map((q) => add(q, delta)); break;
     }
     this.requestRender();
     this.hooks.onLiveChange?.();
@@ -522,7 +591,8 @@ export class Editor2D {
       return;
     }
     const a = st.anchor;
-    this.store.commit((f) => f.walls.push(makeWall(a, p, this.settings.wallThickness, f.height)));
+    const props = this.newWallProps;
+    this.store.commit((f) => f.walls.push({ ...makeWall(a, p, props.thickness, f.height), ...props }));
     st.count += 1;
     st.anchor = p;
     this.typed = '';
@@ -530,13 +600,6 @@ export class Editor2D {
   }
 
   finishChain() {
-    if (this.tool === 'wall' && this.state.count > 0 && this.settings.autoRooms) {
-      const created = detectRooms(this.floor);
-      if (created.length) {
-        this.store.touch();
-        this.status(`Izveidota telpa: ${created.map((r) => r.name).join(', ')}`);
-      }
-    }
     if (this.tool === 'wall') this.state = {};
     this.typed = '';
     this.requestRender();
@@ -556,12 +619,12 @@ export class Editor2D {
     this.store.commit((f) => {
       for (let i = 0; i < 4; i++) {
         const p = pts[i], q = pts[(i + 1) % 4];
-        if (!segmentCovered(f, p, q)) f.walls.push(makeWall(p, q, this.settings.wallThickness, f.height));
+        if (!segmentCovered(f, p, q)) f.walls.push({ ...makeWall(p, q, this.newWallProps.thickness, f.height), ...this.newWallProps });
       }
-      const created = detectRooms(f);
-      if (created.length) this.store.selection = { kind: 'rooms', id: created[created.length - 1].id };
     });
-    this.store.select(this.store.selection);
+    const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const room = this.floor.rooms.find((r) => pointInPolygon(c, r.points));
+    if (room && this.stage?.edit?.includes('rooms')) this.store.select({ kind: 'rooms', id: room.id });
   }
 
   ghostOpening(p) {
@@ -627,6 +690,56 @@ export class Editor2D {
     this.store.select({ kind: 'dims', id: dm.id });
   }
 
+  toggleDemolish(p) {
+    const nw = nearestWall(this.floor, p, 30 / this.view.scale + 10);
+    if (!nw || wallMode(this.stage, nw.wall) === 'hidden') {
+      this.status('Klikšķini tieši uz sienas.');
+      return;
+    }
+    const w = nw.wall;
+    this.store.commit(() => { w.status = w.status === 'demolish' ? 'existing' : 'demolish'; });
+    this.status(w.status === 'demolish' ? 'Siena atzīmēta nojaukšanai.' : 'Atzīme noņemta.');
+  }
+
+  /** Vada punkts pielīp tuvākajam elektrības punktam. */
+  snapWire(p, free) {
+    if (!free) {
+      let best = null;
+      for (const it of this.floor.items) {
+        const def = byKind(it.kind);
+        if (!def?.electric) continue;
+        const d = dist(p, it);
+        if (d < this.tol * 2 && (!best || d < best.d)) best = { d, it };
+      }
+      if (best) return { x: best.it.x, y: best.it.y };
+      const last = this.state.points?.[this.state.points.length - 1];
+      if (last && this.settings.snap) {
+        // Vadi parasti iet paralēli sienām — piesaiste horizontālei/vertikālei.
+        if (Math.abs(p.x - last.x) < this.tol) return { x: last.x, y: round(p.y, 5) };
+        if (Math.abs(p.y - last.y) < this.tol) return { x: round(p.x, 5), y: last.y };
+      }
+    }
+    return this.settings.snap && !free ? { x: round(p.x, 5), y: round(p.y, 5) } : p;
+  }
+
+  clickWire(p) {
+    const st = this.state;
+    st.points = st.points || [];
+    const last = st.points[st.points.length - 1];
+    if (last && dist(last, p) < 1) return this.finishWire();
+    st.points.push(p);
+    this.requestRender();
+  }
+
+  finishWire() {
+    const pts = this.state.points || [];
+    this.state.points = [];
+    if (pts.length < 2) return this.requestRender();
+    const wr = { id: uid(), points: pts, color: '#d93025' };
+    this.store.commit((f) => { (f.wires = f.wires || []).push(wr); });
+    this.store.select({ kind: 'wires', id: wr.id });
+  }
+
   placeText(p) {
     const l = { id: uid(), x: p.x, y: p.y, text: 'Uzraksts', size: 14 };
     this.store.commit((f) => f.labels.push(l));
@@ -655,8 +768,13 @@ export class Editor2D {
         return true;
       }
     }
+    if (k === 'Enter' && this.tool === 'wire') {
+      this.finishWire();
+      return true;
+    }
     if (k === 'Escape') {
-      if (this.tool === 'wall' && this.state.anchor) this.finishChain();
+      if (this.tool === 'wire' && this.state.points?.length) this.finishWire();
+      else if (this.tool === 'wall' && this.state.anchor) this.finishChain();
       else if (this.tool !== 'select') this.setTool('select');
       else this.store.select(null);
       return true;

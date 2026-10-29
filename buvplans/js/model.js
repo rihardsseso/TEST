@@ -14,8 +14,10 @@ export const DEFAULTS = {
 };
 
 export function newFloor(name = '1. stāvs', elevation = 0, height = DEFAULTS.wallHeight) {
+  const id = uid();
   return {
-    id: uid(),
+    id,
+    group: id,
     name,
     elevation,
     height,
@@ -26,6 +28,7 @@ export function newFloor(name = '1. stāvs', elevation = 0, height = DEFAULTS.wa
     items: [],
     dims: [],
     labels: [],
+    wires: [],
     background: null,
   };
 }
@@ -47,7 +50,7 @@ export function newProject(name = 'Jauns projekts') {
 }
 
 export function makeWall(a, b, thickness = DEFAULTS.wallThickness, height = DEFAULTS.wallHeight) {
-  return { id: uid(), a: { ...a }, b: { ...b }, thickness, height };
+  return { id: uid(), a: { ...a }, b: { ...b }, thickness, height, status: 'existing' };
 }
 
 export function makeOpening(type, wallId, pos, opts = {}) {
@@ -146,6 +149,7 @@ export class Store extends EventTarget {
 
   touch() {
     this.project.updated = new Date().toISOString();
+    this.beforeEmit?.(this.floor);
     this.emit('change');
   }
 
@@ -190,7 +194,8 @@ export class Store extends EventTarget {
 
   deleteSelected() {
     const s = this.selection;
-    if (!s) return;
+    // Grīda izriet no sienām — to nevar izdzēst atsevišķi.
+    if (!s || s.kind === 'rooms') return;
     this.commit((f) => {
       f[s.kind] = f[s.kind].filter((x) => x.id !== s.id);
       if (s.kind === 'walls') f.openings = f.openings.filter((o) => o.wallId !== s.id);

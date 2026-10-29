@@ -5,6 +5,9 @@ import {
 } from './geometry.js';
 import { uid } from './model.js';
 
+// Nojaucamās sienas telpas neveido — telpas atbilst situācijai pēc remonta.
+const liveWalls = (floor) => floor.walls.filter((w) => w.status !== 'demolish');
+
 const key = (p) => `${Math.round(p.x * 2)}:${Math.round(p.y * 2)}`;
 
 /** Sadala sienu asis krustpunktos un T savienojumos; atgriež grafa malas ar atsauci uz sienu. */
@@ -133,12 +136,55 @@ export function netOutline(face) {
  * Telpa paliek tā pati (nosaukums, apdare), mainās tikai tās forma.
  */
 export function syncRooms(floor) {
-  const outlines = findFaces(floor.walls).map(netOutline);
+  const outlines = findFaces(liveWalls(floor)).map(netOutline);
   for (const r of floor.rooms) {
     const p = interiorPoint(r.points);
     const match = outlines.find((o) => pointInPolygon(p, o));
     if (match) r.points = match;
   }
+}
+
+/**
+ * Pārrēķina visas telpas pēc pašreizējām sienām: esošās telpas saglabā nosaukumu un apdari,
+ * telpas bez kontūra tiek noņemtas, jauniem kontūriem tiek izveidotas jaunas telpas.
+ */
+export function rebuildRooms(floor) {
+  const outlines = findFaces(liveWalls(floor)).map(netOutline).filter((o) => polygonArea(o) >= 5000);
+  const used = new Set();
+  const next = [];
+  let created = 0;
+  for (const o of outlines) {
+    // Telpa paliek tā pati (nosaukums, materiāls), ja kontūri pārklājas — arī tad, ja siena pārvietota tālu.
+    const inner = interiorPoint(o);
+    const old = floor.rooms.find((r) => !used.has(r.id) && pointInPolygon(interiorPoint(r.points), o))
+      || floor.rooms.find((r) => !used.has(r.id) && pointInPolygon(inner, r.points));
+    if (old) {
+      used.add(old.id);
+      next.push({ ...old, points: o });
+    } else {
+      created += 1;
+      next.push({ id: uid(), name: `Telpa ${floor.rooms.length + created}`, points: o, floorFinish: 'parquet', wallFinish: 'paint' });
+    }
+  }
+  const removed = floor.rooms.length - used.size;
+  floor.rooms = next;
+  return { created, removed };
+}
+
+const signature = (floor) => liveWalls(floor).map((w) => `${w.a.x},${w.a.y},${w.b.x},${w.b.y},${w.thickness}`).join(';');
+
+/**
+ * Grīdas (telpas) nav patstāvīgi objekti: to kontūrs vienmēr izriet no sienām.
+ * Pēc katras izmaiņas, kas skar sienas, telpas tiek pārrēķinātas, saglabājot to iestatījumus.
+ */
+export function keepRoomsInSync(store) {
+  const seen = new Map();
+  store.beforeEmit = (floor) => {
+    const sig = signature(floor);
+    if (seen.get(floor.id) === sig) return;
+    seen.set(floor.id, sig);
+    rebuildRooms(floor);
+  };
 }
 
 /**
@@ -148,7 +194,7 @@ export function syncRooms(floor) {
 export function detectRooms(floor) {
   const created = [];
   let n = floor.rooms.length;
-  for (const face of findFaces(floor.walls)) {
+  for (const face of findFaces(liveWalls(floor))) {
     const outline = netOutline(face);
     if (polygonArea(outline) < 5000) continue;
     const inner = interiorPoint(outline);

@@ -46,7 +46,7 @@ export function roomElevations(floor, room) {
       // Priekšmetam jāatrodas pie šīs sienas — tā tuvākā mala nedrīkst būt tālu.
       if (Math.min(...corners.map(depth)) > 25) continue;
       const def = byKind(it.kind);
-      items.push({ name: it.name || def?.name, x0, x1, y0: it.elev || 0, y1: (it.elev || 0) + it.h, color: it.color, electric: def?.electric, depth: dp });
+      items.push({ name: it.name || def?.name, x0, x1, y0: it.elev || 0, y1: (it.elev || 0) + it.h, color: it.color, electric: def?.electric || def?.water, depth: dp });
     }
     items.sort((p, q) => q.depth - p.depth);
     res.push({ index: i, label: String.fromCharCode(65 + (res.length % 26)), length: L, height: H, openings, items, mid: add(a, mul(sub(b, a), 0.5)), inward });
