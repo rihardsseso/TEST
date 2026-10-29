@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { polygonArea, insetPolygon, pointInPolygon, interiorPoint, segmentIntersection } from '../js/geometry.js';
-import { newFloor, newProject, makeWall, makeOpening, moveJoint, clampOpening, segmentCovered, Store } from '../js/model.js';
+import { newFloor, newProject, makeWall, makeOpening, moveJoint, clampOpening, segmentCovered, Store, snapshotWalls, followHosts } from '../js/model.js';
+import { wallFaceDims } from '../js/dims.js';
 import { findFaces, detectRooms, syncRooms, keepRoomsInSync } from '../js/rooms.js';
 import { roomStats, floorStats, specification, statsCSV } from '../js/calc.js';
 import { roomElevations, elevationSVG } from '../js/elevations.js';
@@ -143,4 +144,47 @@ test('grīda seko sienām: pārvietojot vai dzēšot sienu, telpa mainās, iesta
   // Atsaukšana atjauno sienas un grīdu.
   store.undo();
   assert.equal(store.floor.rooms.length, 2);
+});
+
+test('izmēri nepazūd, ja izdzēš sienu un telpa vairs nav noslēgta', () => {
+  const store = new Store(newProject());
+  keepRoomsInSync(store);
+  store.commit((f) => box(f, 0, 0, 400, 300, 20));
+  const faces = () => wallFaceDims(store.floor, store.floor.walls);
+  const innerOf = (pred) => faces().filter((x) => x.kind === 'inner' && pred(x.wall)).map((x) => x.pieces.map((m) => Math.round(m[m.length - 1] - m[0])));
+  const isTop = (w) => w.a.y === 0 && w.b.y === 0;
+  assert.deepEqual(innerOf(isTop), [[380]]);
+  // Izdzēš labo sienu: telpas vairs nav, bet augšējai un kreisajai sienai izmēri paliek.
+  store.commit((f) => { f.walls = f.walls.filter((w) => !(w.a.x === 400 && w.b.x === 400)); });
+  assert.equal(store.floor.rooms.length, 0);
+  assert.deepEqual(innerOf(isTop), [[400]]); // no kreisās sienas virsmas līdz brīvajam galam
+  assert.deepEqual(innerOf((w) => w.a.x === 0 && w.b.x === 0), [[280]]);
+  const outerTop = faces().find((x) => x.kind === 'outer' && isTop(x.wall));
+  assert.equal(Math.round(outerTop.pieces[0].at(-1) - outerTop.pieces[0][0]), 420);
+});
+
+test('mainot ārsienas garumu, iekšsienas seko līdzi un saglabā attālumu līdz tuvākajam stūrim', () => {
+  const f = newFloor();
+  box(f, 0, 0, 600, 400, 25);
+  const near = makeWall({ x: 150, y: 0 }, { x: 150, y: 400 }, 10); // tuvāk kreisajam stūrim
+  const far = makeWall({ x: 450, y: 0 }, { x: 450, y: 400 }, 10); // tuvāk labajam stūrim
+  f.walls.push(near, far);
+  const win = makeOpening('window', f.walls[0].id, 500, { width: 100 }); // augšējā sienā, 100 cm no labā stūra
+  f.openings.push(win);
+  for (const [from, to] of [[{ x: 600, y: 0 }, { x: 800, y: 0 }], [{ x: 600, y: 400 }, { x: 800, y: 400 }]]) {
+    const before = snapshotWalls(f);
+    moveJoint(f, from, to);
+    followHosts(f, before);
+  }
+  assert.deepEqual([near.a, near.b], [{ x: 150, y: 0 }, { x: 150, y: 400 }]);
+  // Tālākā siena pārbīdās paralēli (paliek vertikāla) un ir 150 cm no labā stūra.
+  assert.deepEqual([far.a, far.b].map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) })), [{ x: 650, y: 0 }, { x: 650, y: 400 }]);
+  assert.equal(Math.round(win.pos), 700);
+  // Ārsienas paplašināšana uz augšu: iekšsienas pagarinās līdzi, x nemainās.
+  const before = snapshotWalls(f);
+  moveJoint(f, { x: 0, y: 0 }, { x: 0, y: -100 });
+  moveJoint(f, { x: 800, y: 0 }, { x: 800, y: -100 });
+  followHosts(f, before);
+  assert.deepEqual(near.a, { x: 150, y: -100 });
+  assert.equal(Math.round(far.a.y), -100);
 });

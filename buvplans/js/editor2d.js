@@ -4,7 +4,7 @@ import {
 } from './geometry.js';
 import {
   makeWall, makeOpening, wallLength, wallDir, wallNormal, wallPoint, clampOpening,
-  nearestWall, moveJoint, segmentCovered, uid, DEFAULTS,
+  nearestWall, moveJoint, segmentCovered, uid, snapshotWalls, followHosts,
 } from './model.js';
 import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen } from './draw2d.js';
 import { rebuildRooms } from './rooms.js';
@@ -514,7 +514,9 @@ export class Editor2D {
     const f = this.floor;
     if (dr.mode === 'joint') {
       const to = this.snap(p, { free: e.shiftKey }).p;
+      const before = snapshotWalls(f);
       moveJoint(f, dr.from, to);
+      followHosts(f, before);
       dr.from = to;
       rebuildRooms(f);
       this.requestRender();
@@ -546,8 +548,10 @@ export class Editor2D {
       case 'walls': {
         const [ja, jb] = dr.joints;
         const curA = { ...obj.a }, curB = { ...obj.b };
+        const before = snapshotWalls(f);
         moveJoint(f, curA, add(ja, delta));
         moveJoint(f, curB, add(jb, delta));
+        followHosts(f, before);
         rebuildRooms(f);
         break;
       }

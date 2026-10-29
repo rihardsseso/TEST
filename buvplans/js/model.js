@@ -1,5 +1,5 @@
 // Projekta datu modelis un stāvoklis ar atsaukšanu.
-import { dist, sub, norm, add, mul, projectOnSegment } from './geometry.js';
+import { dist, sub, norm, add, mul, dot, cross, len, projectOnSegment } from './geometry.js';
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -70,6 +70,7 @@ export function makeOpening(type, wallId, pos, opts = {}) {
 }
 
 export const wallLength = (w) => dist(w.a, w.b);
+export const wallKind = (w) => w.kind || (w.thickness >= 20 ? 'bearing' : 'partition');
 export const wallDir = (w) => norm(sub(w.b, w.a));
 export const wallNormal = (w) => {
   const d = wallDir(w);
@@ -222,4 +223,107 @@ export function moveJoint(floor, from, to, tol = 0.5) {
     const w = floor.walls.find((x) => x.id === o.wallId);
     if (w) clampOpening(o, w);
   }
+}
+
+/** Sienu ģeometrijas momentuzņēmums pirms izmaiņām (followHosts vajadzībām). */
+export function snapshotWalls(floor) {
+  return new Map(floor.walls.map((w) => [w.id, { a: { ...w.a }, b: { ...w.b } }]));
+}
+
+/**
+ * Pēc sienu (parasti ārsienu) garuma vai leņķa maiņas tām piestiprinātās iekšsienas (T savienojumi)
+ * un ailes seko līdzi, saglabājot attālumu līdz tuvākajam sienas galam. Ja iekšsiena pārvietojas sāniski,
+ * tā tiek pārbīdīta paralēli kopā ar tai pievienotajām sienām, nevis sašķiebta.
+ */
+export function followHosts(floor, before) {
+  // Pārbīdītām sienām var būt savas piestiprinātās sienas — atkārto, līdz viss ir savās vietās.
+  let prev = before;
+  for (let i = 0; i < 6; i++) {
+    const snap = snapshotWalls(floor);
+    if (!followPass(floor, prev, i === 0)) break;
+    prev = snap;
+  }
+}
+
+function followPass(floor, before, userPass) {
+  const moves = new Map();
+  for (const h of floor.walls) {
+    const old = before.get(h.id);
+    if (!old || (dist(old.a, h.a) < 0.01 && dist(old.b, h.b) < 0.01)) continue;
+    const oldL = dist(old.a, old.b), newL = wallLength(h);
+    if (oldL < 1 || newL < 1) continue;
+    const nd = wallDir(h);
+    for (const o of floor.openings) {
+      if (o.wallId === h.id && o.pos > oldL / 2) o.pos = newL - (oldL - o.pos);
+    }
+    for (const w of floor.walls) {
+      if (w === h) continue;
+      const ow = before.get(w.id);
+      for (const end of ['a', 'b']) {
+        // Pirmajā piegājienā lietotāja pārvietotos galus neaiztiek; vēlāk skatās pašreizējo stāvokli.
+        if (userPass && ow && dist(w[end], ow[end]) > 0.01) continue;
+        const p = w[end];
+        const pr = projectOnSegment(p, old.a, old.b);
+        if (pr.dist > 0.5) continue;
+        const along = pr.t * oldL, fromB = oldL - along;
+        if (along < 0.5 || fromB < 0.5) continue; // stūra savienojums — to pārvieto moveJoint
+        // Lietotāja mainītai sienai saglabā attālumu līdz tuvākajam galam; līdzi pabīdītai — tikai projicē uz jauno līniju.
+        const target = !userPass ? projectOnSegment(p, h.a, h.b).point
+          : along <= fromB ? add(h.a, mul(nd, Math.min(along, newL))) : add(h.b, mul(nd, -Math.min(fromB, newL)));
+        moves.set(`${Math.round(p.x * 10)}:${Math.round(p.y * 10)}`, [{ ...p }, target]);
+      }
+    }
+  }
+  const visited = new Set();
+  let moved = false;
+  for (const [from, to] of moves.values()) {
+    if (dist(from, to) < 0.01) continue;
+    shiftJoint(floor, from, to, visited);
+    moved = true;
+  }
+  for (const o of floor.openings) {
+    const w = floor.walls.find((x) => x.id === o.wallId);
+    if (w) clampOpening(o, w);
+  }
+  return moved;
+}
+
+const r2 = (p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 });
+
+function shiftJoint(floor, from, to, visited) {
+  to = r2(to);
+  const key = (p) => `${Math.round(p.x * 10)}:${Math.round(p.y * 10)}`;
+  if (visited.has(key(from)) || dist(from, to) < 0.01) return;
+  // Gan sākuma, gan galamērķa punkts — lai pārbīde neatlēktu atpakaļ uz jau pārvietoto galu.
+  visited.add(key(from));
+  visited.add(key(to));
+  const delta = sub(to, from);
+  // Virziens jāņem pirms pārvietošanas, citādi sāniskā nobīde izskatītos kā sašķiebšanās.
+  const attached = floor.walls
+    .filter((w) => dist(w.a, from) < 0.5 || dist(w.b, from) < 0.5)
+    .map((e) => {
+      const other = dist(e.a, from) < 0.5 ? 'b' : 'a';
+      return { e, other, d: norm(sub(e[other], from)) };
+    });
+  moveJoint(floor, from, to);
+  for (const { e, other, d } of attached) {
+    const perp = sub(delta, mul(d, dot(delta, d)));
+    if (len(perp) < 0.01) continue;
+    const q = { ...e[other] };
+    if (canSlide(floor, q, perp)) shiftJoint(floor, q, add(q, perp), visited);
+  }
+}
+
+/** Punktu var pabīdīt, ja tas nav nesošās sienas gals un slīd tikai gar paralēlām sienām. */
+function canSlide(floor, q, v) {
+  const vn = norm(v);
+  for (const h of floor.walls) {
+    const isEnd = dist(h.a, q) < 0.5 || dist(h.b, q) < 0.5;
+    if (isEnd) {
+      if (wallKind(h) === 'bearing') return false;
+    } else if (projectOnSegment(q, h.a, h.b).dist < 0.5 && Math.abs(cross(wallDir(h), vn)) > 0.15) {
+      return false;
+    }
+  }
+  return true;
 }

@@ -13,7 +13,9 @@ tumša rīkjosla kreisajā pusē, stāvu un variantu izvēlnes, apakšējā josl
 | Stadijas | Pamatplāns → Demontāža → Starpsienas → Telpas → Apkure → Mēbeles → Santehnika → Ūdensapgāde → Rozetes → Slēdži → Apgaismojums → Elektroinstalācija; katrai stadijai savi rīki un katalogs, pārējais plānā fonā |
 | 2D plāns | Sienas ar piesaisti stūriem, sienām un 15° leņķiem; garuma ievade ar tastatūru (ieraksti `350` un Enter); telpa ar vienu vilcienu; durvis un logi; izmēru līnijas; teksti; režģis; tālummaiņa ar riteni vai diviem pirkstiem |
 | Grīdas un telpas | Nav atsevišķi objekti: kontūrs vienmēr izriet no sienām (arī T un krustojuma savienojumos) un mainās līdzi, kad sienu pārvieto, pagarina, dzēš vai nojauc; telpai iestata nosaukumu, grīdas materiālu (parkets, lamināts, flīzes u. c.), sienu apdari un griestu augstumu |
-| Rasējuma stils | Svītrotas nesošās sienas, baltas starpsienas, sarkanas nojaucamās, iekšējie izmēri gar katru telpas sienu, ārējās izmēru ķēdes, sarkanas H= / S= birkas |
+| Rasējuma stils | Svītrotas nesošās sienas, baltas starpsienas, sarkanas nojaucamās, sarkanas H= / S= birkas |
+| Izmēri | Rēķina katrai sienas virsmai no pašām sienām un ailēm: iekšējās virsmas — skaitļi gar sienu, ārējās — izmēru ķēde; nepazūd, ja telpa pēc sienas dzēšanas vairs nav noslēgta |
+| Sienu sasaiste | Mainot ārsienas garumu vai leņķi (stūra vilkšana, sienas vilkšana, garuma ievade), tai piestiprinātās iekšsienas un ailes seko līdzi, saglabājot attālumu līdz tuvākajam stūrim; iekšsienas pārbīdās paralēli kopā ar savām piestiprinātajām sienām |
 | Katalogs | ~50 priekšmeti: mēbeles, virtuve, santehnika, radiatori, ūdens izvadi, rozetes, slēdži, gaismekļi, sadalne; priekšmets pie sienas pats pagriežas ar aizmuguri pret to; elektroinstalācijas vadi |
 | 3D | Automātisks modelis ar ailēm, logiem, durvīm, grīdas segumu un sienu apdares krāsām; visi stāvi vienlaikus; "zemas sienas" režīms; attēla eksports |
 | Sienu skati | Katras telpas sienu attīstījumi ar ailēm, mēbelēm un elektrības punktu augstumiem |
@@ -42,9 +44,10 @@ Mapi `buvplans/` var publicēt jebkurā statiskā hostingā (GitHub Pages, Netli
 ## Struktūra
 
 - `js/geometry.js` — plaknes ģeometrija
-- `js/model.js` — datu modelis, atsaukšana
+- `js/model.js` — datu modelis, atsaukšana, piestiprināto sienu sekošana
 - `js/stages.js` — darba stadijas un to redzamības noteikumi
 - `js/rooms.js` — grīdu/telpu kontūri no sienām un automātiska sinhronizācija
+- `js/dims.js` — automātiskie izmēri katrai sienas virsmai
 - `js/calc.js` — apjomu aprēķini
 - `js/elevations.js` — sienu skati (SVG)
 - `js/draw2d.js`, `js/editor2d.js` — plāna zīmēšana un rīki

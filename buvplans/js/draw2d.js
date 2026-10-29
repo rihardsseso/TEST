@@ -1,9 +1,10 @@
 // Stāva zīmēšana uz canvas rasējuma stilā: tiek lietota gan redaktorā, gan albuma lapās.
 import { polygonArea, interiorPoint, sub, norm, add, mul, cross, rotate, bounds, signedArea, projectOnSegment, pointInPolygon, dist, dot } from './geometry.js';
-import { wallDir, wallNormal, wallPoint, wallLength } from './model.js';
+import { wallDir, wallNormal, wallPoint, wallLength, wallKind } from './model.js';
 import { drawItem2D, isPoint, finish, FLOOR_FINISHES, categoryOf } from './catalog.js';
 import { itemMode, wallMode } from './stages.js';
 import { fmt } from './calc.js';
+import { wallFaceDims } from './dims.js';
 
 export const THEME = {
   bg: '#ffffff', grid: '#eef0f2', gridMajor: '#d9dde1', ink: '#222222', muted: '#555555', line: '#2b2b2b',
@@ -107,7 +108,7 @@ export function itemDrawScale(it, scale) {
   return Math.max(1, 18 / (Math.max(it.w, it.d) * scale));
 }
 
-export const wallKind = (w) => w.kind || (w.thickness >= 20 ? 'bearing' : 'partition');
+export { wallKind };
 
 export function floorBounds(floor) {
   const pts = [];
@@ -212,8 +213,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
 
   // Izmēri gar sienām
   if (opts.dims && (!stage || stage.dims)) {
-    drawInnerDims(ctx, floor, walls.map((x) => x.w), openings, view, t, opts.units);
-    drawOuterDims(ctx, floor, walls.map((x) => x.w), openings, view, t, opts.units);
+    drawWallDims(ctx, floor, walls.map((x) => x.w), openings, view, t, opts.units);
   }
 
   // Priekšmeti
@@ -360,98 +360,43 @@ function textAlong(ctx, p, ang, text, knockout, t) {
   ctx.restore();
 }
 
-/** Sienas posmi: atstarpes starp ailēm gar nogriezni a→b (pozīcijas cm no a). */
-function segmentsAlong(a, b, walls, openings) {
-  const L = dist(a, b), dir = norm(sub(b, a));
-  const cuts = [];
-  for (const o of openings) {
-    const w = walls.find((x) => x.id === o.wallId);
-    if (!w) continue;
-    const c = wallPoint(w, o.pos);
-    const pr = projectOnSegment(c, a, b);
-    if (pr.dist > w.thickness / 2 + 3) continue;
-    const x = dot(sub(c, a), dir);
-    if (x < -1 || x > L + 1) continue;
-    cuts.push([Math.max(0, x - o.width / 2), Math.min(L, x + o.width / 2)]);
-  }
-  cuts.sort((p, q) => p[0] - q[0]);
-  const pts = [0];
-  for (const [s, e] of cuts) pts.push(s, e);
-  pts.push(L);
-  return pts;
-}
-
-/** Iekšējie izmēri: katras telpas sienas posmu garumi, rakstīti telpas iekšpusē gar sienu. */
-function drawInnerDims(ctx, floor, walls, openings, view, t, units) {
+/** Izmēri gar sienām: iekšējās virsmas — skaitļi telpas pusē, ārējās — izmēru ķēde ar atzīmēm. */
+function drawWallDims(ctx, floor, walls, openings, view, t, units) {
   const { scale, ox, oy } = view;
   const S = (p) => ({ x: p.x * scale + ox, y: p.y * scale + oy });
-  ctx.font = `9px ${t.font}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const r of floor.rooms) {
-    const pts = r.points;
-    if (pts.length < 3) continue;
-    const cw = signedArea(pts) > 0;
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i + 1) % pts.length];
-      const dir = norm(sub(b, a));
-      const inward = cw ? { x: -dir.y, y: dir.x } : { x: dir.y, y: -dir.x };
-      const marks = segmentsAlong(a, b, walls, openings);
-      const ang = Math.atan2(b.y - a.y, b.x - a.x);
-      for (let k = 0; k + 1 < marks.length; k++) {
-        const len = marks[k + 1] - marks[k];
-        if (len < 1 || len * scale < 18) continue;
-        const mid = add(a, mul(dir, (marks[k] + marks[k + 1]) / 2));
-        textAlong(ctx, S(add(mid, mul(inward, 8 / scale))), ang, fmtLen(len, units), false, t);
-      }
-    }
-  }
-}
-
-/** Ārējās izmēru ķēdes ārsienām: posmi starp ailēm pa ārējo virsmu. */
-function drawOuterDims(ctx, floor, walls, openings, view, t, units) {
-  const { scale, ox, oy } = view;
-  const S = (p) => ({ x: p.x * scale + ox, y: p.y * scale + oy });
-  const inRoom = (p) => floor.rooms.some((r) => pointInPolygon(p, r.points));
+  const at = (f, x, off) => S(add(add(f.origin, mul(f.dir, x)), mul(f.normal, off / scale)));
   ctx.font = `9px ${t.font}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.strokeStyle = t.dim;
   ctx.lineWidth = 0.8;
-  for (const w of walls) {
-    const n = wallNormal(w), d = wallDir(w), L = wallLength(w), mid = wallPoint(w, L / 2);
-    const probe = (s) => inRoom(add(mid, mul(n, s * (w.thickness / 2 + 6))));
-    const pIn = probe(1), nIn = probe(-1);
-    if (pIn === nIn) continue;
-    const side = pIn ? -1 : 1;
-    // Stūros ārējā virsma ir garāka par asi.
-    const corner = (p) => walls.some((o) => o !== w && (dist(o.a, p) < 0.5 || dist(o.b, p) < 0.5) && Math.abs(cross(wallDir(o), d)) > 0.5);
-    const ea = corner(w.a) ? w.thickness / 2 : 0, eb = corner(w.b) ? w.thickness / 2 : 0;
-    const faceOff = mul(n, side * (w.thickness / 2));
-    const A = add(add(w.a, faceOff), mul(d, -ea)), B = add(add(w.b, faceOff), mul(d, eb));
-    const marks = segmentsAlong(A, B, [w], openings.filter((o) => o.wallId === w.id));
-    const off = mul(n, (side * 22) / scale);
-    const lineA = S(add(A, off)), lineB = S(add(B, off));
-    ctx.beginPath();
-    ctx.moveTo(lineA.x, lineA.y);
-    ctx.lineTo(lineB.x, lineB.y);
-    const tick = rotate(norm(sub(lineB, lineA)), -45);
-    for (const m of marks) {
-      const q = S(add(add(A, mul(d, m)), off));
-      ctx.moveTo(q.x - tick.x * 3.5, q.y - tick.y * 3.5);
-      ctx.lineTo(q.x + tick.x * 3.5, q.y + tick.y * 3.5);
-    }
-    for (const m of [0, marks[marks.length - 1]]) {
-      const f = S(add(A, mul(d, m))), q = S(add(add(A, mul(d, m)), off));
-      ctx.moveTo(f.x + (q.x - f.x) * 0.25, f.y + (q.y - f.y) * 0.25);
-      ctx.lineTo(q.x + (q.x - f.x) * 0.15, q.y + (q.y - f.y) * 0.15);
-    }
-    ctx.stroke();
-    const ang = Math.atan2(d.y, d.x);
-    for (let k = 0; k + 1 < marks.length; k++) {
-      const len = marks[k + 1] - marks[k];
-      if (len < 1 || len * scale < 16) continue;
-      textAlong(ctx, S(add(add(A, mul(d, (marks[k] + marks[k + 1]) / 2)), off)), ang, fmtLen(len, units), true, t);
+  for (const f of wallFaceDims(floor, walls, openings)) {
+    const ang = Math.atan2(f.dir.y, f.dir.x);
+    for (const marks of f.pieces) {
+      if (f.kind === 'outer') {
+        const a = at(f, marks[0], 22), b = at(f, marks[marks.length - 1], 22);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        const tick = rotate(norm(sub(b, a)), -45);
+        for (const m of marks) {
+          const q = at(f, m, 22);
+          ctx.moveTo(q.x - tick.x * 3.5, q.y - tick.y * 3.5);
+          ctx.lineTo(q.x + tick.x * 3.5, q.y + tick.y * 3.5);
+        }
+        for (const m of [marks[0], marks[marks.length - 1]]) {
+          const q0 = at(f, m, 6), q1 = at(f, m, 25);
+          ctx.moveTo(q0.x, q0.y);
+          ctx.lineTo(q1.x, q1.y);
+        }
+        ctx.stroke();
+      }
+      for (let k = 0; k + 1 < marks.length; k++) {
+        const len = marks[k + 1] - marks[k];
+        if (len < 1 || len * scale < (f.kind === 'outer' ? 16 : 18)) continue;
+        const midX = (marks[k] + marks[k + 1]) / 2;
+        textAlong(ctx, at(f, midX, f.kind === 'outer' ? 22 : 8), ang, fmtLen(len, units), f.kind === 'outer', t);
+      }
     }
   }
 }

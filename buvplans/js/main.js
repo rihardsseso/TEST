@@ -1,5 +1,5 @@
 // Lietotnes savienojums: stadijas, rīkjoslas, īpašības, stāvi un varianti, projekti, eksports.
-import { Store, newProject, newFloor, uid, wallLength, wallDir, clampOpening, moveJoint, makeWall, STATUSES, statusLabel } from './model.js';
+import { Store, newProject, newFloor, uid, wallLength, wallDir, clampOpening, moveJoint, makeWall, STATUSES, statusLabel, snapshotWalls, followHosts } from './model.js';
 import { Editor2D, TOOLS } from './editor2d.js';
 import { CATALOG, CATEGORIES, FLOOR_FINISHES, WALL_FINISHES, drawItem2D, byKind } from './catalog.js';
 import { keepRoomsInSync } from './rooms.js';
@@ -334,7 +334,9 @@ function bindFields(el, onChange) {
 
 function applyProp(f, kind, obj, k, v) {
   if (kind === 'walls' && k === 'len') {
+    const before = snapshotWalls(f);
     moveJoint(f, { ...obj.b }, add(obj.a, mul(wallDir(obj), Math.max(1, v))));
+    followHosts(f, before);
     return;
   }
   if (kind === 'openings') {

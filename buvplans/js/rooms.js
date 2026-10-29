@@ -47,10 +47,13 @@ function splitWalls(walls) {
 export function findFaces(walls) {
   const edges = splitWalls(walls);
   const nodes = new Map();
+  // Mezgli tiek apvienoti pēc attāluma, nevis noapaļojot, lai milimetru nesakritības neatvērtu savienojumu.
   const node = (p) => {
-    const k = key(p);
-    if (!nodes.has(k)) nodes.set(k, { k, p, out: [] });
-    return nodes.get(k);
+    for (const n of nodes.values()) if (Math.abs(n.p.x - p.x) < 0.75 && Math.abs(n.p.y - p.y) < 0.75) return n;
+    const n = { k: key(p), p, out: [] };
+    while (nodes.has(n.k)) n.k += "'";
+    nodes.set(n.k, n);
+    return n;
   };
   const seen = new Set();
   for (const e of edges) {
