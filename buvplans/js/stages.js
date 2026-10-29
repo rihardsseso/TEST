@@ -1,37 +1,53 @@
-// Darba stadijas: katra rāda savus rīkus un katalogu, pārējais plānā ir fonā.
-// Secība atbilst remonta gaitai — no esošās situācijas līdz elektroinstalācijai.
+// Darba stadijas (lapas) tādā pašā secībā un ar tādiem pašiem rīkiem kā Remplanner plānotājā.
+// Katra stadija rāda savus rīkus; citās stadijās ievietotais plānā ir fonā vai paslēpts.
+import { STAGE_DEFS } from './catalog-data.js';
 
-export const STAGES = [
-  { id: 'base', name: 'Pamatplāns', tools: ['select', 'wall', 'rect', 'door', 'window', 'dim', 'text'], cats: ['building'], edit: ['walls', 'openings'], dims: true },
-  { id: 'demolish', name: 'Demontāža', tools: ['select', 'demolish', 'dim', 'text'], cats: [], edit: ['walls'], dims: true },
-  { id: 'partitions', name: 'Starpsienas', tools: ['select', 'wall', 'rect', 'door', 'window', 'dim', 'text'], cats: [], edit: ['walls', 'openings'], dims: true, newWalls: true },
-  { id: 'rooms', name: 'Telpas', tools: ['select', 'dim', 'text'], cats: [], edit: ['rooms'], dims: true, roomFill: true },
-  { id: 'heating', name: 'Apkure', tools: ['select'], cats: ['heating'] },
-  { id: 'furniture', name: 'Mēbeles', tools: ['select'], cats: ['living', 'bedroom', 'kitchen', 'other'] },
-  { id: 'plumbing', name: 'Santehnika', tools: ['select'], cats: ['bath'] },
-  { id: 'water', name: 'Ūdensapgāde', tools: ['select'], cats: ['water'] },
-  { id: 'sockets', name: 'Rozetes', tools: ['select'], cats: ['sockets'], wires: 'faded' },
-  { id: 'switches', name: 'Slēdži', tools: ['select'], cats: ['switches'], wires: 'faded' },
-  { id: 'lighting', name: 'Apgaismojums', tools: ['select'], cats: ['lighting'], wires: 'faded' },
-  { id: 'wiring', name: 'Elektroinstalācija', tools: ['select', 'wire'], cats: ['wiring'], wires: 'edit', show: ['sockets', 'switches', 'lighting'] },
-];
+// Būvniecības stadijas rāda tikai sienas, ailes un ēkas elementus.
+const BUILD = new Set(['init', 'break_walls', 'create_walls']);
 
-export const stageById = (id) => STAGES.find((s) => s.id === id) || STAGES[0];
+const FLAGS = {
+  init: { edit: ['walls', 'openings'], dims: true },
+  break_walls: { edit: ['walls', 'openings'], dims: true },
+  create_walls: { edit: ['walls', 'openings'], dims: true, newWalls: true },
+  rooms: { edit: ['rooms'], dims: true, roomNumbers: true },
+  cables: { show: ['sockets', 'light_connections', 'light', 'shield'] },
+  sockets: { show: ['cables'] },
+  light_connections: { show: ['light', 'cables'] },
+  light: { show: ['light_connections', 'cables'] },
+  waterplan: { show: ['santeh'] },
+  santeh: { show: ['waterplan'] },
+  warm_floor: { show: ['floor'] },
+  shield: { shield: true },
+  floor: { edit: ['rooms'], dims: true, roomFill: 'floor' },
+  walls: { edit: ['rooms'], dims: true, faces: 'wall' },
+  ceiling: { edit: ['rooms'], roomFill: 'ceiling' },
+  hydroisolation: { edit: ['rooms'], roomFill: 'waterFloor', faces: 'waterWall' },
+  isolation: { edit: ['rooms'], faces: 'insulation' },
+  shtukaturka: { edit: ['rooms'], faces: 'plasterWall', roomFill: 'plasterCeiling' },
+  styazhka: { edit: ['rooms'], roomFill: 'screed' },
+};
 
-const BUILD_STAGES = new Set(['base', 'demolish', 'partitions']);
+export const STAGES = STAGE_DEFS.map((s) => ({ ...s, ...(FLAGS[s.id] || {}), build: BUILD.has(s.id) }));
+
+/** Lietotāja pievienotā lapa (piezīmēm, izmēriem, figūrām). */
+export const customStage = (sheet) => ({ id: sheet.id, name: sheet.name, custom: true, tools: [], dims: true });
+
+export const stageById = (id, sheets = []) => STAGES.find((s) => s.id === id) || (sheets.find((x) => x.id === id) && customStage(sheets.find((x) => x.id === id))) || STAGES[0];
 
 /**
- * Kā priekšmets jāzīmē šajā stadijā: 'active' (rediģējams), 'shown' (pilnā krāsā, nerediģējams),
- * 'faded' (fonā) vai 'hidden'.
+ * Kā objektu (priekšmetu, līniju, zonu) ar slāni `layer` zīmēt šajā stadijā:
+ * 'active' (rediģējams), 'shown' (pilnā krāsā), 'faded' (fonā) vai 'hidden'.
  */
-export function itemMode(stage, cat) {
+export function layerMode(stage, layer) {
   if (!stage) return 'active';
-  if (stage.cats.includes(cat)) return 'active';
-  if (cat === 'building') return 'shown';
-  if (BUILD_STAGES.has(stage.id)) return 'hidden';
-  if (stage.show?.includes(cat)) return 'shown';
+  if (layer === stage.id) return 'active';
+  if (layer === 'init') return stage.build && stage.id !== 'init' ? 'shown' : stage.id === 'init' ? 'active' : 'shown';
+  if (stage.build) return 'hidden';
+  if (stage.show?.includes(layer)) return 'shown';
+  if (stage.custom) return 'faded';
   return 'faded';
 }
+export const itemMode = layerMode;
 
 /**
  * Sienas statuss: 'existing' (esoša), 'demolish' (nojaucama), 'new' (jauna starpsiena).
@@ -40,9 +56,9 @@ export function itemMode(stage, cat) {
 export function wallMode(stage, wall) {
   const st = wall.status || 'existing';
   if (!stage) return st === 'demolish' ? 'hidden' : 'normal';
-  if (stage.id === 'base') return st === 'new' ? 'hidden' : 'normal';
-  if (stage.id === 'demolish') return st === 'new' ? 'hidden' : st === 'demolish' ? 'demolish' : 'normal';
-  if (stage.id === 'partitions') return st === 'demolish' ? 'hidden' : st === 'new' ? 'new' : 'normal';
+  if (stage.id === 'init') return st === 'new' ? 'hidden' : 'normal';
+  if (stage.id === 'break_walls') return st === 'new' ? 'hidden' : st === 'demolish' ? 'demolish' : 'normal';
+  if (stage.id === 'create_walls') return st === 'demolish' ? 'hidden' : st === 'new' ? 'new' : 'normal';
   return st === 'demolish' ? 'hidden' : 'normal';
 }
 

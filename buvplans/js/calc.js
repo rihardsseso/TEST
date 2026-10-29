@@ -3,6 +3,9 @@ import { polygonArea, polygonPerimeter, pointInPolygon, add, mul } from './geome
 import { wallLength, wallPoint, wallNormal } from './model.js';
 import { byKind, finish, FLOOR_FINISHES, WALL_FINISHES } from './catalog.js';
 import { wallMaterial, unitsPerM2 } from './walls.js';
+import { LINE_TYPES, ZONE_TYPES, FINISHES } from './catalog-data.js';
+
+const polyLength = (pts) => pts.reduce((s, p, i) => (i ? s + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0), 0);
 
 const m2 = (cm2) => cm2 / 1e4;
 const m = (cm) => cm / 100;
@@ -45,7 +48,7 @@ export function roomStats(floor, room) {
     sockets: items.filter((it) => byKind(it.kind)?.electric === 'socket').length,
     switches: items.filter((it) => byKind(it.kind)?.electric === 'switch').length,
     lights: items.filter((it) => byKind(it.kind)?.electric === 'light').length,
-    floorFinish: finish(FLOOR_FINISHES, room.floorFinish).name,
+    floorFinish: room.floorFinish ? FINISHES.floor[room.floorFinish]?.name || finish(FLOOR_FINISHES, room.floorFinish).name : '–',
     wallFinish: finish(WALL_FINISHES, room.wallFinish).name,
   };
 }
@@ -54,6 +57,7 @@ export function floorStats(floor) {
   const rooms = floor.rooms.map((r) => roomStats(floor, r));
   let wallLen = 0, wallVol = 0, demLen = 0, demVol = 0, newLen = 0, newArea = 0;
   for (const w of floor.walls) {
+    if (w.kind === 'virtual') continue;
     if (w.status === 'demolish') {
       demLen += wallLength(w);
       demVol += wallLength(w) * w.height * w.thickness;
@@ -92,7 +96,7 @@ export function floorStats(floor) {
       demolishVolume: demVol / 1e6,
       newLength: m(newLen),
       newArea: m2(newArea),
-      wireLength: m((floor.wires || []).reduce((s, wr) => s + wr.points.reduce((q, p, i) => (i ? q + Math.hypot(p.x - wr.points[i - 1].x, p.y - wr.points[i - 1].y) : 0), 0), 0)),
+      wireLength: m((floor.lines || []).filter((l) => ['cable', 'lowcable', 'earth'].includes(l.type)).reduce((s, l) => s + polyLength(l.points), 0)),
     },
   };
 }
@@ -101,7 +105,7 @@ export function floorStats(floor) {
 export function wallMaterials(floor) {
   const map = new Map();
   for (const w of floor.walls) {
-    if (w.status === 'demolish') continue;
+    if (w.status === 'demolish' || w.kind === 'virtual') continue;
     const mat = wallMaterial(w.material);
     const k = `${w.material || ''}|${w.thickness}`;
     if (!map.has(k)) map.set(k, { name: mat?.name || 'Materiāls nav norādīts', thickness: w.thickness, length: 0, area: 0, volume: 0, units: null, perM2: unitsPerM2(mat, w.thickness) });
@@ -117,10 +121,74 @@ export function wallMaterials(floor) {
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'lv') || b.thickness - a.thickness);
 }
 
+/** Līniju (cauruļu, kabeļu, gaisa vadu u. c.) garumi pa tipiem un nosaukumiem. */
+export function lineSchedule(floor) {
+  const map = new Map();
+  for (const l of floor.lines || []) {
+    const name = l.label || LINE_TYPES[l.type]?.name || l.type;
+    if (!map.has(name)) map.set(name, { name, length: 0, count: 0, color: LINE_TYPES[l.type]?.color });
+    const row = map.get(name);
+    row.length += m(polyLength(l.points));
+    row.count += 1;
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'lv'));
+}
+
+/** Zonu laukumi pa tipiem (siltā grīda, atvērumi, terase u. c.). */
+export function zoneSchedule(floor) {
+  const map = new Map();
+  for (const z of floor.zones || []) {
+    const name = z.label || (z.finish && FINISHES.floor[z.finish]?.name) || ZONE_TYPES[z.type]?.name || z.type;
+    if (!map.has(name)) map.set(name, { name, area: 0, count: 0 });
+    const row = map.get(name);
+    row.area += m2(polygonArea(z.points));
+    row.count += 1;
+  }
+  return [...map.values()];
+}
+
+/**
+ * Apdares apjomi: grīdas segumi, griesti, klons, hidroizolācija (pēc telpu laukuma), sienu apdare, izolācija,
+ * apmetums (pēc sienu virsmu laukuma bez ailēm) un grīdlīstes (pēc perimetra bez durvīm).
+ */
+export function finishSchedule(floor) {
+  const rows = new Map();
+  const addRow = (group, id, unit, qty) => {
+    const def = FINISHES[group]?.[id];
+    const name = def?.name || finish(FLOOR_FINISHES, id)?.name || id;
+    const k = `${group}|${name}`;
+    if (!rows.has(k)) rows.set(k, { group, name, unit, qty: 0 });
+    rows.get(k).qty += qty;
+  };
+  for (const r of floor.rooms) {
+    const a = m2(polygonArea(r.points));
+    if (r.floorFinish) addRow('floor', r.floorFinish, 'm²', a);
+    if (r.ceiling) addRow('ceiling', r.ceiling, 'm²', a);
+    if (r.screed) addRow('screed', r.screed, 'm³', a * (r.screedLevel || 5) / 100);
+    if (r.waterFloor) addRow('waterFloor', r.waterFloor, 'm²', a);
+    if (r.plasterCeiling) addRow('plasterCeiling', r.plasterCeiling, 'm²', a);
+    if (r.baseboard) addRow('baseboard', r.baseboard, 'm', roomStats(floor, r).baseboard);
+  }
+  for (const z of floor.zones || []) if (z.finish) addRow('floor', z.finish, 'm²', m2(polygonArea(z.points)));
+  for (const w of floor.walls) {
+    if (!w.faces || w.status === 'demolish') continue;
+    const ops = floor.openings.filter((o) => o.wallId === w.id).reduce((s, o) => s + o.width * Math.min(o.height, w.height - o.sill), 0);
+    const area = m2(wallLength(w) * w.height - ops);
+    for (const side of ['p', 'n']) {
+      const f = w.faces[side];
+      if (!f) continue;
+      for (const g of ['wall', 'waterWall', 'insulation', 'plasterWall']) if (f[g]) addRow(g, f[g], 'm²', area);
+    }
+  }
+  const GROUP_NAMES = { floor: 'Grīdas segums', ceiling: 'Griesti', screed: 'Grīdas klons', waterFloor: 'Grīdas hidroizolācija', plasterCeiling: 'Griestu apmetums', baseboard: 'Grīdlīstes', wall: 'Sienu apdare', waterWall: 'Sienu hidroizolācija', insulation: 'Izolācija', plasterWall: 'Sienu apmetums' };
+  return [...rows.values()].map((r) => ({ ...r, groupName: GROUP_NAMES[r.group] || r.group }));
+}
+
 /** Specifikācija: vienādu priekšmetu skaits ar izmēriem. */
 export function specification(floor) {
   const map = new Map();
   for (const it of floor.items) {
+    if (it.kind === '__image' || it.status === 'demolish') continue;
     const name = it.name || byKind(it.kind)?.name || it.kind;
     const k = `${name}|${it.w}|${it.d}|${it.h}`;
     if (!map.has(k)) map.set(k, { name, w: it.w, d: it.d, h: it.h, count: 0 });

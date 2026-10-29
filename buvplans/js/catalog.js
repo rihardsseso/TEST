@@ -1,5 +1,7 @@
 // Mēbeļu, santehnikas un elektroinstalācijas katalogs ar 2D simboliem un vienkāršiem 3D modeļiem.
 // Izmēri cm: w – platums, d – dziļums, h – augstums, elev – augstums no grīdas.
+// Pilnais katalogs (ITEMS) ir ģenerēts catalog-data.js; šeit — simboli, 3D modeļi un vecā parauga katalogs.
+import { ITEMS } from './catalog-data.js';
 
 export const CATEGORIES = [
   { id: 'building', name: 'Ēkas elementi' },
@@ -201,7 +203,8 @@ const draw = {
   },
   water(c, w, d, it) {
     C(c, 0, 0, w / 2);
-    const letter = { wcold: 'A', whot: 'K', sewer: 'N' }[it?.kind] || '';
+    const kind = byKind(it?.kind)?.water || it?.kind;
+    const letter = { wcold: 'A', whot: 'K', sewer: 'N', cold: 'A', hot: 'K' }[kind] || '';
     c.save();
     c.fillStyle = c.strokeStyle;
     c.font = `600 ${w * 0.7}px sans-serif`;
@@ -218,6 +221,207 @@ const draw = {
     R(c, -w / 2, -d / 2, w, d);
     c.beginPath(); c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, d / 2); c.lineTo(-w / 2, d / 2); c.closePath();
     const f = c.fillStyle; c.fillStyle = c.strokeStyle; c.fill(); c.fillStyle = f;
+  },
+  cornerSofa(c, w, d) {
+    const a = Math.min(w, d) * 0.5;
+    c.beginPath();
+    c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.lineTo(w / 2, -d / 2 + a); c.lineTo(-w / 2 + a, -d / 2 + a);
+    c.lineTo(-w / 2 + a, d / 2); c.lineTo(-w / 2, d / 2); c.closePath(); c.fill(); c.stroke();
+    R(c, -w / 2, -d / 2, w, a * 0.3);
+    R(c, -w / 2, -d / 2, a * 0.3, d);
+  },
+  pouf: (c, w, d) => RR(c, -w / 2, -d / 2, w, d, Math.min(w, d) * 0.25),
+  stool: (c, w) => C(c, 0, 0, w / 2),
+  officeChair(c, w, d) {
+    C(c, 0, d * 0.05, w * 0.4);
+    RR(c, -w * 0.38, -d / 2, w * 0.76, d * 0.2, 4);
+  },
+  bench(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    for (let x = -w / 2 + w / 4; x < w / 2; x += w / 4) L(c, x, -d / 2, x, d / 2);
+  },
+  deskL(c, w, d) {
+    const a = Math.min(w, d) * 0.45;
+    c.beginPath();
+    c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.lineTo(w / 2, -d / 2 + a); c.lineTo(-w / 2 + a, -d / 2 + a);
+    c.lineTo(-w / 2 + a, d / 2); c.lineTo(-w / 2, d / 2); c.closePath(); c.fill(); c.stroke();
+  },
+  tvWall(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    L(c, -w * 0.45, d / 2, w * 0.45, d / 2);
+  },
+  bunk(c, w, d) {
+    draw.bed(c, w, d);
+    L(c, -w / 2, -d / 2, w / 2, d / 2);
+    L(c, w / 2, -d / 2, -w / 2, d / 2);
+  },
+  mirror(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    L(c, -w / 2, d / 2, w / 2, -d / 2);
+  },
+  bar(c, w, d) {
+    L(c, -w / 2, 0, w / 2, 0);
+    C(c, -w / 2, 0, d / 3);
+    C(c, w / 2, 0, d / 3);
+  },
+  smallbox: (c, w, d) => RR(c, -w / 2, -d / 2, w, d, 3),
+  faucet(c, w, d) {
+    C(c, 0, -d * 0.2, Math.min(w, d) * 0.35);
+    L(c, 0, -d * 0.2, 0, d / 2);
+  },
+  urinal(c, w, d) {
+    c.beginPath(); c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.quadraticCurveTo(w / 2, d / 2, 0, d / 2); c.quadraticCurveTo(-w / 2, d / 2, -w / 2, -d / 2); c.fill(); c.stroke();
+  },
+  bidet(c, w, d) {
+    E(c, 0, 0, w * 0.45, d * 0.45);
+    C(c, 0, -d * 0.2, 2);
+  },
+  drain(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    for (let x = -w / 2 + 4; x < w / 2; x += 4) L(c, x, -d / 2 + 1, x, d / 2 - 1);
+  },
+  hood(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    c.setLineDash?.([4, 3]);
+    L(c, -w / 2, -d / 2, w / 2, d / 2);
+    L(c, w / 2, -d / 2, -w / 2, d / 2);
+    c.setLineDash?.([]);
+  },
+  piano(c, w, d) {
+    if (d > w) {
+      c.beginPath(); c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.lineTo(w / 2, 0); c.quadraticCurveTo(w / 2, d / 2, 0, d / 2); c.lineTo(-w / 2, d / 2); c.closePath(); c.fill(); c.stroke();
+    } else R(c, -w / 2, -d / 2, w, d);
+    R(c, -w * 0.45, -d / 2, w * 0.9, Math.min(d, 60) * 0.25);
+  },
+  poolTable(c, w, d) {
+    RR(c, -w / 2, -d / 2, w, d, 6);
+    R(c, -w / 2 + 8, -d / 2 + 8, w - 16, d - 16);
+    for (const [x, y] of [[-1, -1], [0, -1], [1, -1], [-1, 1], [0, 1], [1, 1]]) C(c, x * (w / 2 - 8), y * (d / 2 - 8), 3);
+  },
+  gym(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    R(c, -w * 0.4, -d * 0.35, w * 0.8, d * 0.7);
+    C(c, 0, 0, Math.min(w, d) * 0.15);
+  },
+  car(c, w, d) {
+    const [L2, W2] = w > d ? [w, d] : [d, w];
+    c.save();
+    if (d > w) c.rotate(Math.PI / 2);
+    RR(c, -L2 / 2, -W2 / 2, L2, W2, W2 * 0.25);
+    RR(c, -L2 * 0.15, -W2 * 0.4, L2 * 0.4, W2 * 0.8, 6);
+    c.restore();
+  },
+  fireplace(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    c.beginPath(); c.moveTo(-w * 0.3, d / 2); c.lineTo(-w * 0.2, -d * 0.1); c.lineTo(w * 0.2, -d * 0.1); c.lineTo(w * 0.3, d / 2); c.stroke();
+  },
+  curtain(c, w, d) {
+    c.beginPath();
+    c.moveTo(-w / 2, 0);
+    for (let x = -w / 2; x < w / 2; x += 10) c.quadraticCurveTo(x + 2.5, -d / 2, x + 5, 0), c.quadraticCurveTo(x + 7.5, d / 2, x + 10, 0);
+    c.stroke();
+  },
+  stairsL(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    const a = Math.min(w, d) * 0.45;
+    L(c, -w / 2 + a, d / 2, -w / 2 + a, -d / 2 + a, w / 2, -d / 2 + a);
+    for (let y = -d / 2 + a + 28; y < d / 2; y += 28) L(c, -w / 2, y, -w / 2 + a, y);
+    for (let x = -w / 2 + a + 28; x < w / 2; x += 28) L(c, x, -d / 2, x, -d / 2 + a);
+  },
+  stairsU(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    L(c, 0, d / 2, 0, -d / 2 + w * 0.45);
+    L(c, -w / 2, -d / 2 + w * 0.45, w / 2, -d / 2 + w * 0.45);
+    for (let y = -d / 2 + w * 0.45 + 28; y < d / 2; y += 28) L(c, -w / 2, y, w / 2, y);
+  },
+  spiral(c, w) {
+    C(c, 0, 0, w / 2);
+    C(c, 0, 0, w * 0.08);
+    for (let a = 0; a < 12; a++) {
+      const r = (a * Math.PI) / 6;
+      L(c, Math.cos(r) * w * 0.08, Math.sin(r) * w * 0.08, Math.cos(r) * w / 2, Math.sin(r) * w / 2);
+    }
+  },
+  elevator(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    L(c, -w / 2, -d / 2, w / 2, d / 2);
+    L(c, w / 2, -d / 2, -w / 2, d / 2);
+  },
+  riser(c, w) {
+    C(c, 0, 0, w / 2);
+    C(c, 0, 0, w / 4);
+  },
+  shaft(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    L(c, -w / 2, -d / 2, w / 2, d / 2);
+    L(c, w / 2, -d / 2, -w / 2, d / 2);
+    R(c, -w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+  },
+  grille(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    for (let y = -d / 2 + 3; y < d / 2; y += 3) L(c, -w / 2 + 2, y, w / 2 - 2, y);
+  },
+  sensor(c, w) {
+    C(c, 0, 0, w / 2);
+    C(c, 0, 0, w / 6);
+  },
+  camera(c, w, d) {
+    c.beginPath(); c.moveTo(0, -d / 2); c.lineTo(w / 2, d / 2); c.lineTo(-w / 2, d / 2); c.closePath(); c.fill(); c.stroke();
+  },
+  extinguisher(c, w) {
+    C(c, 0, 0, w / 2);
+    L(c, -w * 0.25, -w * 0.25, w * 0.25, w * 0.25);
+  },
+  acIndoor(c, w, d) {
+    RR(c, -w / 2, -d / 2, w, d, 4);
+    for (let x = -w / 2 + 8; x < w / 2 - 4; x += 8) L(c, x, d * 0.1, x + 4, d / 2 - 2);
+  },
+  acCassette(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    R(c, -w * 0.3, -d * 0.3, w * 0.6, d * 0.6);
+    L(c, -w / 2, -d / 2, -w * 0.3, -d * 0.3); L(c, w / 2, -d / 2, w * 0.3, -d * 0.3);
+    L(c, -w / 2, d / 2, -w * 0.3, d * 0.3); L(c, w / 2, d / 2, w * 0.3, d * 0.3);
+  },
+  acOutdoor(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    C(c, -w * 0.12, 0, Math.min(w, d) * 0.38);
+  },
+  fan(c, w) {
+    C(c, 0, 0, w * 0.1);
+    for (let a = 0; a < 3; a++) {
+      const r = (a * 2 * Math.PI) / 3;
+      E(c, Math.cos(r) * w * 0.28, Math.sin(r) * w * 0.28, w * 0.18, w * 0.07);
+    }
+  },
+  floorlamp(c, w) {
+    C(c, 0, 0, w / 2);
+    C(c, 0, 0, w / 8);
+  },
+  track(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    for (const x of [-w * 0.3, 0, w * 0.3]) C(c, x, 0, d * 0.45);
+  },
+  waterGroup(c, w, d, it) {
+    const n = 3, r = Math.min(w / n, d) / 2;
+    ['A', 'K', 'N'].forEach((letter, i) => {
+      const x = -w / 2 + r + i * (w - 2 * r) / (n - 1);
+      C(c, x, 0, r);
+      c.save(); c.fillStyle = c.strokeStyle; c.font = `600 ${r * 1.3}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(letter, x, r * 0.08); c.restore();
+    });
+  },
+  node(c, w) {
+    c.beginPath(); c.arc(0, 0, w / 2, 0, Math.PI * 2);
+    const f = c.fillStyle; c.fillStyle = c.strokeStyle; c.fill(); c.fillStyle = f;
+  },
+  column(c, w, d) {
+    R(c, -w / 2, -d / 2, w, d);
+    L(c, -w / 2, -d / 2, w / 2, d / 2);
+    L(c, w / 2, -d / 2, -w / 2, d / 2);
+  },
+  start(c, w) {
+    C(c, 0, 0, w / 2);
+    L(c, -w / 2, 0, w / 2, 0);
+    L(c, 0, -w / 2, 0, w / 2);
   },
 };
 
@@ -265,6 +469,23 @@ const build = {
   bath: (it) => box(it.w, it.d, it.h),
   toilet: (it) => [[0, 20, it.d * 0.1, it.w * 0.8, 40, it.d * 0.75, null, 'cyl'], [0, 55, -it.d / 2 + it.d * 0.15, it.w, 40, it.d * 0.3]],
   basin: (it) => [[0, it.h / 2, 0, it.w, it.h, it.d]],
+  cornerSofa: (it) => {
+    const a = Math.min(it.w, it.d) * 0.5;
+    return [[0, 22, -it.d / 2 + a / 2, it.w, 44, a], [-it.w / 2 + a / 2, 22, a / 2, a, 44, it.d - a], [0, 55, -it.d / 2 + 6, it.w, 70, 12], [-it.w / 2 + 6, 55, 0, 12, 70, it.d]];
+  },
+  deskL: (it) => {
+    const a = Math.min(it.w, it.d) * 0.45;
+    return [[0, it.h - 2, -it.d / 2 + a / 2, it.w, 4, a], [-it.w / 2 + a / 2, it.h - 2, a / 2, a, 4, it.d - a], [0, (it.h - 4) / 2, -it.d / 2 + 4, it.w - 10, it.h - 4, 4, 'dark']];
+  },
+  bunk: (it) => [...build.bed({ ...it }), [0, 135, 0, it.w, 20, it.d, 'white'], [0, 120, 0, it.w + 4, 8, it.d + 4, 'dark']],
+  officeChair: (it) => [[0, 45, 0, it.w * 0.8, 8, it.d * 0.8, null, 'cyl'], [0, 22, 0, 6, 44, 6, 'dark', 'cyl'], [0, 80, -it.d / 2 + 6, it.w * 0.75, 55, 6]],
+  stool: (it) => [[0, it.h - 3, 0, it.w, 6, it.d, null, 'cyl'], [0, (it.h - 6) / 2, 0, 5, it.h - 6, 5, 'dark', 'cyl']],
+  pouf: (it) => [[0, it.h / 2, 0, it.w, it.h, it.d, null, 'cyl']],
+  floorlamp: (it) => [[0, it.h - 15, 0, it.w, 30, it.w, 'white', 'cyl', 'light'], [0, (it.h - 30) / 2, 0, 3, it.h - 30, 3, 'dark', 'cyl']],
+  poolTable: (it) => build.table(it),
+  fan: (it) => [[0, 0, 0, it.w, 3, it.w, null, 'cyl']],
+  riser: (it) => [[0, it.h / 2, 0, it.w, it.h, it.w, null, 'cyl']],
+  stool2: (it) => box(it.w, it.d, it.h),
   stairs: (it) => {
     const n = Math.max(2, Math.round(it.d / 28)), sd = it.d / n, sh = it.h / n;
     return Array.from({ length: n }, (_, i) => [0, sh * (i + 0.5), it.d / 2 - sd * (i + 0.5), it.w, sh, sd]);
@@ -325,7 +546,35 @@ export const CATALOG = [
   item('column', 'Kolonna', 'building', 30, 30, 270, '#c8c8c8', 'box'),
 ];
 
-export const byKind = (kind) => CATALOG.find((c) => c.kind === kind);
+// Ģimeņu noklusējuma krāsas ģenerētajiem priekšmetiem.
+const FAMILY_COLORS = {
+  sofa: '#7b8a9a', cornerSofa: '#7b8a9a', armchair: '#a08670', pouf: '#b59a7a', bed: '#d8d2c8', bunk: '#d8d2c8', chair: '#5d6670', stool: '#5d6670',
+  officeChair: '#444a52', bench: '#c9a477', table: '#c49a6c', roundTable: '#c49a6c', deskL: '#c49a6c', wardrobe: '#e7e1d6', shelf: '#d8c3a5',
+  counter: '#e9e6df', tv: '#4b4f55', tvWall: '#2b2e33', fridge: '#d9dde2', stove: '#3b3e43', hood: '#cfd3d8', sinkKitchen: '#e9e6df', basin: '#f4f6f8',
+  bath: '#f4f6f8', shower: '#cfe3ef', toilet: '#f4f6f8', bidet: '#f4f6f8', urinal: '#f4f6f8', washer: '#eef0f2', boiler: '#f0f0f0', radiator: '#f0f0f0',
+  towel: '#e8e8e8', faucet: '#c9ced3', drain: '#c9ced3', mirror: '#dcecf7', bar: '#c9ced3', plant: '#5e8a4f', piano: '#2b2e33', poolTable: '#2f7d4f',
+  gym: '#6b737b', car: '#9aa6b2', fireplace: '#9c8c7c', curtain: '#d9cbb3', stairs: '#c49a6c', stairsL: '#c49a6c', stairsU: '#c49a6c', spiral: '#c49a6c',
+  elevator: '#c8c8c8', riser: '#9fb7cf', shaft: '#d9d9d9', grille: '#eeeeee', sensor: '#ffffff', camera: '#ffffff', extinguisher: '#e05a4f',
+  acIndoor: '#f4f6f8', acCassette: '#f4f6f8', acOutdoor: '#e3e6e9', fan: '#e3e6e9', floorlamp: '#fff3c4', track: '#f4f6f8', socket: '#ffffff',
+  switch: '#ffffff', junction: '#ffffff', panel: '#f2f2f2', chandelier: '#fff3c4', spot: '#fff3c4', light: '#fff3c4', sconce: '#fff3c4',
+  water: '#d9e8fb', waterGroup: '#e8eef6', manifold: '#d8d8d8', node: '#333333', column: '#c8c8c8', start: '#ffffff', smallbox: '#d6d9dc', box: '#d9d4cb',
+};
+// Vecā kataloga kategorijas → stadijas (slānis), kurā priekšmets rediģējams.
+const LEGACY_STAGE = { building: 'init', heating: 'radiators', living: 'furniture', bedroom: 'furniture', kitchen: 'furniture', other: 'furniture', bath: 'santeh', water: 'waterplan', sockets: 'sockets', switches: 'light_connections', lighting: 'light', wiring: 'cables' };
+
+const defCache = new Map();
+/** Priekšmeta definīcija pēc tipa (vecais katalogs vai ģenerētais ITEMS). */
+export function byKind(kind) {
+  if (defCache.has(kind)) return defCache.get(kind);
+  let def = CATALOG.find((c) => c.kind === kind);
+  if (def) def = { ...def, stage: LEGACY_STAGE[def.cat] || 'furniture' };
+  else if (ITEMS[kind]) {
+    const g = ITEMS[kind];
+    def = { kind, name: g.name, w: g.w, d: g.d, h: g.h, elev: g.elev, color: FAMILY_COLORS[g.fam] || '#d9d4cb', sym: g.fam, stage: g.stage, cat: g.stage, electric: g.electric, water: g.water };
+  }
+  defCache.set(kind, def || null);
+  return def || null;
+}
 
 export function drawItem2D(ctx, it) {
   const def = byKind(it.kind);
@@ -336,8 +585,11 @@ export function drawItem2D(ctx, it) {
 /** Mazi sienas punkti (rozetes, slēdži, izvadi), kas ekrānā jāzīmē palielināti. */
 export const isPoint = (it) => {
   const def = byKind(it.kind);
-  return !!(def && (def.electric || def.water) && Math.max(def.w, def.d) <= 20);
+  return !!(def && (def.electric || def.water || ['sensor', 'camera', 'node', 'grille', 'riser', 'faucet'].includes(def.sym)) && Math.max(def.w, def.d) <= 30);
 };
+
+/** Vai simbolā ierakstīt nosaukumu (vispārīgiem taisnstūriem bez sava simbola). */
+export const needsLabel = (it) => ['box', 'smallbox', 'gym', 'counter', 'shelf'].includes(byKind(it.kind)?.sym);
 
 export function parts3D(it) {
   const def = byKind(it.kind);
@@ -346,7 +598,8 @@ export function parts3D(it) {
 }
 
 export const isElectric = (it) => byKind(it.kind)?.electric;
-export const categoryOf = (it) => byKind(it.kind)?.cat || 'other';
+/** Slānis (stadija), kurā priekšmets tika ievietots un kurā to var rediģēt. */
+export const categoryOf = (it) => it.layer || byKind(it.kind)?.stage || 'furniture';
 
 export const FLOOR_FINISHES = [
   { id: 'parquet', name: 'Parkets', color: '#c9a477' },

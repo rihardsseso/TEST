@@ -28,7 +28,8 @@ export function newFloor(name = '1. stāvs', elevation = 0, height = DEFAULTS.wa
     items: [],
     dims: [],
     labels: [],
-    wires: [],
+    lines: [],
+    zones: [],
     background: null,
   };
 }

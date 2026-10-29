@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { wallLength, wallDir, wallPoint } from './model.js';
-import { parts3D, finish, FLOOR_FINISHES, WALL_FINISHES, byKind } from './catalog.js';
+import { parts3D, finish, WALL_FINISHES, byKind } from './catalog.js';
+import { finishDef } from './draw2d.js';
 import { pointInPolygon, add, mul } from './geometry.js';
 
 const U = 0.01; // cm → m
@@ -138,7 +139,7 @@ export class View3D {
       const shape = new THREE.Shape(r.points.map((q) => new THREE.Vector2(q.x * U, -q.y * U)));
       const geo = new THREE.ShapeGeometry(shape);
       geo.rotateX(-Math.PI / 2);
-      const m = new THREE.Mesh(geo, mat(finish(FLOOR_FINISHES, r.floorFinish).color, { roughness: 0.7 }));
+      const m = new THREE.Mesh(geo, mat(finishDef('floor', r.floorFinish)?.color || '#e4dccd', { roughness: 0.7 }));
       m.position.y = 0.002;
       m.receiveShadow = true;
       g.add(m);
@@ -147,7 +148,7 @@ export class View3D {
     const wallH = (w) => (this.options.cutWalls ? Math.min(w.height, 110) : w.height);
     for (const w of f.walls) {
       const L = wallLength(w);
-      if (L < 1 || w.status === 'demolish') continue;
+      if (L < 1 || w.status === 'demolish' || w.kind === 'virtual') continue;
       const H = wallH(w);
       const color = wallColor(f, w);
       const ops = f.openings.filter((o) => o.wallId === w.id).sort((a, b) => a.pos - b.pos);
@@ -179,7 +180,8 @@ export class View3D {
     // Priekšmeti
     for (const it of f.items) {
       const def = byKind(it.kind);
-      if (this.options.cutWalls && def?.electric === 'light') continue;
+      if (!def || it.status === 'demolish') continue;
+      if (this.options.cutWalls && def.electric === 'light') continue;
       const ig = new THREE.Group();
       for (const [px, py, pz, pw, ph, pd, tone, shape, flag] of parts3D(it)) {
         let geo;
@@ -261,6 +263,10 @@ export class View3D {
 
 /** Sienas krāsa ņemta no telpas apdares, kurai siena robežojas. */
 function wallColor(f, w) {
+  for (const side of ['p', 'n']) {
+    const fd = finishDef('wall', w.faces?.[side]?.wall);
+    if (fd?.color) return fd.color;
+  }
   const mid = wallPoint(w, wallLength(w) / 2);
   const d = wallDir(w), n = { x: -d.y, y: d.x };
   for (const s of [1, -1]) {

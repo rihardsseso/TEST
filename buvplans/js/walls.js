@@ -10,6 +10,10 @@ export const WALL_MATERIALS = [
   { id: 'timber', name: 'Koka karkass', thick: [10, 15, 20, 25], def: 15, pattern: 'insulation', bg: '#fff8ea', ink: '#b08a4f' },
   { id: 'clt', name: 'Koka masīvs (CLT)', thick: [10, 12, 16, 20], def: 12, pattern: 'wood', bg: '#f1e2c6', ink: '#b88d58' },
   { id: 'drywall', name: 'Ģipškartona starpsiena', thick: [7.5, 10, 12.5, 15], def: 10, pattern: 'plain', bg: '#ffffff', ink: '#9a9a9a', partition: true },
+  { id: 'gypsum', name: 'Ģipša bloki', thick: [8, 10], def: 8, block: [67, 50], pattern: 'dots', bg: '#f7f5f0', ink: '#a8a294', partition: true },
+  { id: 'glass', name: 'Stikls', thick: [1, 4, 8, 12], def: 4, pattern: 'plain', bg: '#e3f1fa', ink: '#6aa3c8', partition: true },
+  { id: 'slat', name: 'Līstu starpsiena', thick: [4, 6, 10], def: 6, pattern: 'wood', bg: '#f1e2c6', ink: '#b88d58', partition: true },
+  { id: 'other', name: 'Cits materiāls', thick: [5, 8, 10, 12, 15, 20], def: 10, pattern: 'hatch', bg: '#ffffff', ink: '#6f6f6f' },
 ];
 
 export const wallMaterial = (id) => WALL_MATERIALS.find((m) => m.id === id) || null;

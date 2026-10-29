@@ -202,3 +202,72 @@ test('sienu materiāli: laukums bez ailēm, apjoms un bloku skaits', () => {
   assert.equal(row.volume.toFixed(3), (area * 0.3).toFixed(3));
   assert.equal(row.units, Math.ceil(area * (1e4 / (60 * 20)))); // 60×20 cm bloki
 });
+
+test('katalogs: katras lapas rīki atsaucas uz esošām grupām, priekšmetiem, līnijām, zonām un apdarēm', async () => {
+  const { STAGES } = await import('../js/stages.js');
+  const { GROUPS, ITEMS, LINE_TYPES, ZONE_TYPES, FINISHES } = await import('../js/catalog-data.js');
+  assert.equal(STAGES.length, 24);
+  const check = (spec, where) => {
+    if (spec.t === 'item') assert.ok(ITEMS[spec.item], `${where}: nav priekšmeta ${spec.item}`);
+    if (spec.t === 'line') assert.ok(LINE_TYPES[spec.line], `${where}: nav līnijas ${spec.line}`);
+    if (spec.t === 'zone') assert.ok(ZONE_TYPES[spec.zone], `${where}: nav zonas ${spec.zone}`);
+    if (spec.t === 'finish' && spec.target !== 'ceilingMolding') assert.ok(FINISHES[spec.target]?.[spec.value], `${where}: nav apdares ${spec.target}/${spec.value}`);
+  };
+  let tools = 0;
+  for (const st of STAGES) {
+    // Lapā „Telpas” kā oriģinālā ir tikai palīdzība — telpas nosauc, klikšķinot plānā
+    if (st.id !== 'rooms') assert.ok(st.tools.length > 0, `${st.id}: nav rīku`);
+    for (const spec of st.tools) {
+      tools += 1;
+      if (spec.t === 'group') {
+        const g = GROUPS[spec.group];
+        assert.ok(g, `${st.id}: nav grupas ${spec.group}`);
+        for (const sec of g.sections) for (const it of sec.items) { tools += 1; check(it, `${st.id}/${spec.group}`); }
+      } else check(spec, st.id);
+    }
+  }
+  assert.ok(tools > 1000, `rīku kopā ${tools}`);
+});
+
+test('albums: plāna lapas tikai stadijām, kurās ir saturs', async () => {
+  const { stageHasContent } = await import('../js/album.js');
+  const { STAGES } = await import('../js/stages.js');
+  const f = sampleProject().floors[0];
+  const ids = STAGES.filter((s) => stageHasContent(f, s)).map((s) => s.id);
+  for (const id of ['init', 'break_walls', 'create_walls', 'rooms', 'furniture', 'cables', 'floor']) assert.ok(ids.includes(id), id);
+  assert.ok(!ids.includes('shield'));
+  const empty = newFloor('Tukšs', 0, 270);
+  assert.deepEqual(STAGES.filter((s) => stageHasContent(empty, s)).map((s) => s.id), ['init']);
+});
+
+test('vecie elektrības vadi tiek pārnesti uz līnijām; caurules un apdare ir aprēķinos', async () => {
+  const { validateProject } = await import('../js/storage.js');
+  const { lineSchedule, finishSchedule, zoneSchedule } = await import('../js/calc.js');
+  const p = newProject('Vecs');
+  p.floors[0].wires = [{ id: 'w1', points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 200 }] }];
+  delete p.floors[0].lines;
+  validateProject(p);
+  const f = p.floors[0];
+  assert.equal(f.lines.length, 1);
+  assert.equal(f.lines[0].layer, 'cables');
+  assert.equal(lineSchedule(f)[0].length, 5);
+  const s = sampleProject().floors[0];
+  assert.ok(lineSchedule(s).length >= 3);
+  assert.ok(zoneSchedule(s).length >= 1);
+  assert.ok(finishSchedule(s).some((r) => r.group === 'floor' && r.qty > 0));
+});
+
+test('slāņi: aktīvās lapas objekti rediģējami, citi fonā vai paslēpti', async () => {
+  const { stageById, layerMode, wallMode } = await import('../js/stages.js');
+  const furn = stageById('furniture'), init = stageById('init'), cables = stageById('cables');
+  assert.equal(layerMode(furn, 'furniture'), 'active');
+  assert.equal(layerMode(furn, 'sockets'), 'faded');
+  assert.equal(layerMode(init, 'furniture'), 'hidden');
+  assert.equal(layerMode(cables, 'sockets'), 'shown');
+  assert.equal(wallMode(init, { status: 'new' }), 'hidden');
+  assert.equal(wallMode(stageById('break_walls'), { status: 'demolish' }), 'demolish');
+  assert.equal(wallMode(furn, { status: 'demolish' }), 'hidden');
+  const custom = stageById('sheet_x', [{ id: 'sheet_x', name: 'Piezīmes' }]);
+  assert.ok(custom.custom);
+  assert.equal(layerMode(custom, 'sheet_x'), 'active');
+});

@@ -5,25 +5,28 @@ Tiešsaistes ēku un telpu plānotājs pārlūkā. Idejas un funkciju kopums ņe
 
 ## Ko var darīt
 
-Saskarne veidota pēc Remplanner plānotāja parauga: rīku rinda ar 2D / Sienas / 3D, darba stadiju cilnes,
-tumša rīkjosla kreisajā pusē, stāvu un variantu izvēlnes, apakšējā josla ar mērvienībām, pārslēgiem un tālummaiņu.
+Saskarne un rīku kopums veidoti pēc Remplanner plānotāja: rīku rinda ar 2D / Sienas / 3D, 24 darba lapas,
+tumša kreisā josla, kas, uzvirzot peli, izvēršas ar nosaukumiem, grupu saraksti ar saliekamām sadaļām un
+priekšskatu („acs”), objektu meklēšana, panelis „Konfigurācija” aktīvajam rīkam, stāvu un variantu izvēlnes,
+apakšējā josla ar mērvienībām, pārslēgiem, rīkiem un tālummaiņu. Visi rīki ir bez maksas; zīmolu preces nav iekļautas.
 
 | Joma | Funkcijas |
 |---|---|
-| Stadijas | Pamatplāns → Demontāža → Starpsienas → Telpas → Apkure → Mēbeles → Santehnika → Ūdensapgāde → Rozetes → Slēdži → Apgaismojums → Elektroinstalācija; katrai stadijai savi rīki un katalogs, pārējais plānā fonā |
-| 2D plāns | Sienas ar piesaisti stūriem, sienām un 15° leņķiem; garuma ievade ar tastatūru (ieraksti `350` un Enter); telpa ar vienu vilcienu; durvis un logi; izmēru līnijas; teksti; režģis; tālummaiņa ar riteni vai diviem pirkstiem |
-| Grīdas un telpas | Nav atsevišķi objekti: kontūrs vienmēr izriet no sienām (arī T un krustojuma savienojumos) un mainās līdzi, kad sienu pārvieto, pagarina, dzēš vai nojauc; telpai iestata nosaukumu, grīdas materiālu (parkets, lamināts, flīzes u. c.), sienu apdari un griestu augstumu |
-| Rasējuma stils | Svītrotas nesošās sienas, baltas starpsienas, sarkanas nojaucamās, sarkanas H= / S= birkas |
-| Sienu veidi | Klikšķis uz „Siena” atver izvēli: gāzbetona, keramzītbetona, keramikas bloki, ķieģeļu mūris, monolītais betons, koka karkass, CLT, ģipškartona starpsiena; pēc tam izvēlas standarta biezumu vai ieraksta savu. Katram materiālam savs rasējuma šķērssvītrojums; aprēķinos — garums, laukums, apjoms un aptuvenais bloku skaits pa materiāliem |
-| Izmēri | Rēķina katrai sienas virsmai no pašām sienām un ailēm: iekšējās virsmas — skaitļi gar sienu, ārējās — izmēru ķēde; nepazūd, ja telpa pēc sienas dzēšanas vairs nav noslēgta |
-| Sienu sasaiste | Mainot ārsienas garumu vai leņķi (stūra vilkšana, sienas vilkšana, garuma ievade), tai piestiprinātās iekšsienas un ailes seko līdzi, saglabājot attālumu līdz tuvākajam stūrim; iekšsienas pārbīdās paralēli kopā ar savām piestiprinātajām sienām |
-| Katalogs | ~50 priekšmeti: mēbeles, virtuve, santehnika, radiatori, ūdens izvadi, rozetes, slēdži, gaismekļi, sadalne; priekšmets pie sienas pats pagriežas ar aizmuguri pret to; elektroinstalācijas vadi |
-| 3D | Automātisks modelis ar ailēm, logiem, durvīm, grīdas segumu un sienu apdares krāsām; visi stāvi vienlaikus; "zemas sienas" režīms; attēla eksports |
-| Sienu skati | Katras telpas sienu attīstījumi ar ailēm, mēbelēm un elektrības punktu augstumiem |
-| Aprēķini | Laukumi, perimetri, tilpumi, sienu laukums bez ailēm, griesti, grīdlīstes, palodzes, mūra apjoms, elektrības punkti, specifikācija; CSV |
-| Albums | A4 lapas ar zīmoga lauku: titullapa, plāni pa stadijām (esošā situācija, demontāža, starpsienas, grīdas, mēbeles, santehnika, apkure, elektrība), telpu eksplikācija, 3D, sienu skati, specifikācija; drukā vai saglabā PDF |
-| Stāvi un varianti | Izvēlnes „1. stāvs” un „1. variants”; jauns stāvs manto nesošās sienas; plānojuma variants ir neatkarīga stāva kopija |
-| Projekti | Glabājas pārlūkā, mapes un statusi, dublēšana, JSON imports/eksports; fona attēls (skenēts plāns) pārzīmēšanai |
+| Lapas | Pamatplāns · Demontāža · Starpsienas · Telpas · Apkure · Mēbeles · Santehnika · Ūdensapgāde · Rozetes · Slēdži · Apgaismojums · Elektroinstalācija · Sadales skapis · Siltās grīdas · Kondicionēšana · Ventilācija · Drošība · Grīdas segumi · Sienu apdare · Griesti · Hidroizolācija · Izolācija · Apmetums · Grīdas klons; „Pievienot lapu” — sava lapa piezīmēm |
+| Katalogs | ~1270 priekšmetu 67 grupās (mēbeles 15 telpu veidiem, santehnika, radiatori, rozetes, slēdži, gaismekļi, kondicionieri, ventilācija, drošība, sadalnes moduļi u. c.) |
+| Pamatplāns | Sienas un balkons ar biezuma un materiāla konfigurāciju (bloki, ķieģeļi, betons, ģipškartons, koks, stikls…), logi (arī balkona bloks, franču logi), 17 durvju veidi, kolonnas, sijas, kāpnes, stāvvadi un ventilācijas šahtas, grīdas atvērumi, terase un zemes gabals |
+| Demontāža | Visa siena vai posms, ailes, radiatori, sadalne; demontāžas atcelšana |
+| Inženiertīkli | Kabeļi (220 V, vājstrāva, zemējums, LED), ūdens un kanalizācijas caurules, apkures caurules, gāze, gaisa vadi (plakani/apaļi ar standarta izmēriem), siltās grīdas zonas (kabelis, IR plēve, ūdens) |
+| Apdare | Grīdas segumi (arī zonās), grīdlīstes, sienu apdare katrai sienas pusei, griesti un līstes, hidroizolācija, izolācija, apmetums, klons ar biezumu |
+| Sadales skapis | DIN sliedes (automātisks vai fiksēts platums), automātslēdži, releji, spailes, atdalītāji, kopnes, krāsaini savienojuma vadi; moduļa grupa, nominālvērtība, komentārs |
+| Grīdas un telpas | Nav atsevišķi objekti: kontūrs izriet no sienām un mainās līdzi; telpas zonējums ar virtuālām sienām |
+| Izmēri un sasaiste | Izmēri katrai sienas virsmai nepazūd, dzēšot sienu; mainot ārsienu, piestiprinātās iekšsienas un ailes seko līdzi |
+| Apakšējā josla | cm / mm / m / in, atsaukt/atkārtot, dzēst, dzēšgumija, padomi, magnēti, rādīt/slēpt elementus, izmērs, figūra, komentārs, attēls, centrēt, pagriezt/apgriezt projektu, notīrīt, programmas iestatījumi (rozešu un kārbu augstums, krāsas, kompakts lapu panelis) |
+| 3D, sienu skati | Automātisks modelis ar ailēm un apdares krāsām; sienu attīstījumi ar elektrības un ūdens punktu augstumiem |
+| Aprēķini | Laukumi, sienas bez ailēm, materiāli un bloku skaits, apdare pa materiāliem, caurules/kabeļi metros, zonas, specifikācija; CSV |
+| Albums | Titullapa, plāns katrai lapai, kurā ir saturs, eksplikācija, 3D, sienu skati, specifikācija, sadales skapis; drukā vai saglabā PDF |
+| Eksports | .plan fails (lejupielāde/augšupielāde), PDF albums, PNG un SVG plāns |
+| Stāvi un varianti | Jauns stāvs manto nesošās sienas; plānojuma variants ir neatkarīga kopija |
 
 ## Palaišana
 
@@ -39,14 +42,19 @@ Mapi `buvplans/` var publicēt jebkurā statiskā hostingā (GitHub Pages, Netli
 
 ## Īsinājumtaustiņi
 
-`V` atlasīt · `W` siena · `K` telpa · `D` durvis · `L` logs · `M` izmērs · `T` teksts · `X` demontēt · `E` vads ·
-`R` pagriezt · `Del` dzēst · `Ctrl+Z` / `Ctrl+Y` · `Ctrl+D` dublēt · `0` rādīt visu · `Esc` beigt.
+`V` atlasīt · `W` siena · `D` durvis · `L` logs · `M` izmērs · `T` komentārs · `E` dzēšgumija ·
+`R` pagriezt · `Del` dzēst · `Ctrl+Z` / `Ctrl+Y` · `Ctrl+D` kopija · `0` centrēt · `Esc` vai labā poga — izslēgt rīku.
 
 ## Struktūra
 
 - `js/geometry.js` — plaknes ģeometrija
 - `js/model.js` — datu modelis, atsaukšana, piestiprināto sienu sekošana
-- `js/stages.js` — darba stadijas un to redzamības noteikumi
+- `js/catalog-data.js` — ģenerēts katalogs: lapas, rīki, grupas, priekšmeti, līniju/zonu veidi, apdare
+- `js/catalog.js` — priekšmetu simboli 2D un 3D
+- `js/stages.js` — darba lapas un to redzamības noteikumi
+- `js/leftbar.js` — kreisā josla, grupu saraksti, meklēšana, konfigurācija
+- `js/shield.js` — sadales skapja konstruktors
+- `js/icons.js` — rīku ikonas
 - `js/rooms.js` — grīdu/telpu kontūri no sienām un automātiska sinhronizācija
 - `js/dims.js` — automātiskie izmēri katrai sienas virsmai
 - `js/walls.js` — sienu materiāli, standarta biezumi un šķērssvītrojumi

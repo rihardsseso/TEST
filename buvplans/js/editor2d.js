@@ -1,6 +1,6 @@
 // 2D plāna redaktors: rīki, piesaiste, vilkšana, tālummaiņa.
 import {
-  dist, sub, add, mul, norm, projectOnSegment, pointInPolygon, rotate, lineIntersection, round,
+  dist, sub, add, mul, norm, projectOnSegment, pointInPolygon, rotate, lineIntersection, round, dot,
 } from './geometry.js';
 import {
   makeWall, makeOpening, wallLength, wallDir, wallNormal, wallPoint, clampOpening,
@@ -9,20 +9,38 @@ import {
 import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen } from './draw2d.js';
 import { rebuildRooms } from './rooms.js';
 import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
-import { itemMode, wallMode } from './stages.js';
+import { layerMode, wallMode } from './stages.js';
 import { wallMaterial } from './walls.js';
+import { LINE_TYPES, ZONE_TYPES, FINISHES } from './catalog-data.js';
 
 export const TOOLS = {
   select: { name: 'Atlasīt', key: 'v', hint: 'Klikšķis atlasa objektu, vilkšana pārvieto. Tukšā vietā vilkšana bīda plānu.' },
-  wall: { name: 'Siena', key: 'w', hint: 'Klikšķini sienas sākumu un katru stūri. Ieraksti garumu cm un Enter. Dubultklikšķis vai Esc pabeidz. Shift — bez leņķa piesaistes.' },
-  rect: { name: 'Telpa', key: 'k', hint: 'Velc taisnstūri — tiks izveidotas četras sienas un telpa.' },
+  wall: { name: 'Zīmēt sienu', key: 'w', hint: 'Klikšķini sienas sākumu un katru stūri. Ieraksti garumu cm un Enter. Dubultklikšķis vai Esc pabeidz. Shift — bez leņķa piesaistes.' },
+  rect: { name: 'Taisnstūris', key: 'k', hint: 'Velc taisnstūri — tiks izveidotas četras sienas.' },
   door: { name: 'Durvis', key: 'd', hint: 'Klikšķini uz sienas, lai ievietotu durvis.' },
   window: { name: 'Logs', key: 'l', hint: 'Klikšķini uz sienas, lai ievietotu logu.' },
-  dim: { name: 'Izmērs', key: 'm', hint: 'Klikšķini divus punktus izmēra līnijai.' },
-  text: { name: 'Teksts', key: 't', hint: 'Klikšķini, kur novietot uzrakstu.' },
-  place: { name: 'Novietot', key: null, hint: 'Klikšķini plānā, lai novietotu priekšmetu. Pie sienas tas pagriežas pats. R — pagriezt, Alt — bez piesaistes, Esc — beigt.' },
-  demolish: { name: 'Demontēt', key: 'x', hint: 'Klikšķini uz sienas, lai atzīmētu to kā nojaucamu (sarkana). Atkārtots klikšķis atceļ.' },
-  wire: { name: 'Vads', key: 'e', hint: 'Klikšķini vada lūzuma punktus; tie pielīp rozetēm, slēdžiem un gaismekļiem. Dubultklikšķis vai Esc pabeidz.' },
+  opening: { name: 'Aile', key: null, hint: 'Klikšķini uz sienas, lai ievietotu. Puse — pēc tā, kurā sienas pusē ir kursors.' },
+  dim: { name: 'Pievienot izmēru', key: 'm', hint: 'Klikšķini divus punktus izmēra līnijai.' },
+  text: { name: 'Komentārs', key: 't', hint: 'Klikšķini, kur novietot komentāru.' },
+  place: { name: 'Novietot', key: null, hint: 'Klikšķini plānā, lai novietotu. Pie sienas pagriežas pats. R — pagriezt, Alt — bez magnēta, Esc — beigt.' },
+  line: { name: 'Līnija', key: null, hint: 'Klikšķini lūzuma punktus; tie pielīp priekšmetiem. Dubultklikšķis, Enter vai Esc pabeidz.' },
+  zone: { name: 'Zona', key: null, hint: 'Velc taisnstūri vai klikšķini stūrus (atpakaļ pirmajā punktā vai dubultklikšķis noslēdz).' },
+  demolish: { name: 'Demontēt', key: 'x', hint: 'Klikšķini uz objekta, lai atzīmētu to demontāžai (sarkans).' },
+  undemolish: { name: 'Noņemt demontāžu', key: null, hint: 'Klikšķini uz sarkanā objekta, lai noņemtu demontāžas atzīmi.' },
+  finish: { name: 'Apdare', key: null, hint: 'Klikšķini telpā vai pie sienas, lai piešķirtu apdari.' },
+  remove: { name: 'Noņemt apdari', key: null, hint: 'Klikšķini telpā vai pie sienas, lai noņemtu apdari.' },
+  eraser: { name: 'Dzēst ar klikšķi', key: 'e', hint: 'Klikšķini uz objektiem, lai tos dzēstu. Esc — beigt.' },
+  image: { name: 'Attēls', key: null, hint: 'Klikšķini plānā, kur novietot attēlu.' },
+};
+
+// Kuras apdares tiek piešķirtas telpai (grīda/griesti), kuras — sienas virsmai.
+const ROOM_TARGETS = { floor: 'floorFinish', ceiling: 'ceiling', screed: 'screed', waterFloor: 'waterFloor', plasterCeiling: 'plasterCeiling', baseboard: 'baseboard', ceilingMolding: 'ceilingMolding' };
+const FACE_TARGETS = new Set(['wall', 'waterWall', 'insulation', 'plasterWall']);
+// Ko „Noņemt” dzēš katrā stadijā.
+const REMOVE_BY_STAGE = {
+  floor: { room: ['floorFinish', 'baseboard'], zone: true }, walls: { face: ['wall'] }, ceiling: { room: ['ceiling', 'ceilingMolding'] },
+  hydroisolation: { room: ['waterFloor'], face: ['waterWall'] }, isolation: { face: ['insulation'] },
+  shtukaturka: { room: ['plasterCeiling'], face: ['plasterWall'] }, styazhka: { room: ['screed'] },
 };
 
 export class Editor2D {
@@ -33,8 +51,9 @@ export class Editor2D {
     this.hooks = hooks;
     this.view = { scale: 0.6, ox: 60, oy: 60 };
     this.settings = {
-      grid: true, snap: true, dims: true, hints: true, units: 'cm',
-      wallMaterial: 'gas', wallThickness: 25, partitionMaterial: 'drywall', partitionThickness: 10,
+      grid: true, snap: true, magnet: true, dims: true, hints: true, units: 'cm',
+      wallMaterial: 'gas', wallThickness: 25, wallColor: 'white', partitionMaterial: 'drywall', partitionThickness: 10,
+      socketHeight: 30, boxHeight: 240, show: {},
     };
     this.stage = null;
     this.tool = 'select';
@@ -52,6 +71,10 @@ export class Editor2D {
 
   get floor() {
     return this.store.floor;
+  }
+
+  get layer() {
+    return this.stage?.id || 'init';
   }
 
   // ---------- koordinātas ----------
@@ -104,8 +127,7 @@ export class Editor2D {
 
   setStage(stage) {
     this.stage = stage;
-    if (!stage.tools.includes(this.tool) && !['place', 'dim', 'text'].includes(this.tool)) this.setTool('select');
-    if (this.tool === 'place' && !stage.cats.includes(byKind(this.state.kind)?.cat)) this.setTool('select');
+    if (!['select', 'dim', 'text', 'eraser'].includes(this.tool)) this.setTool('select');
     const s = this.store.selection;
     if (s && !this.selectable(s.kind, this.store.selected())) this.store.select(null);
     this.requestRender();
@@ -116,28 +138,34 @@ export class Editor2D {
     const st = this.stage;
     if (!obj) return false;
     if (!st) return true;
-    if (kind === 'items') return itemMode(st, categoryOf(obj)) === 'active';
+    if (kind === 'items' || kind === 'lines' || kind === 'zones') return layerMode(st, kind === 'items' ? categoryOf(obj) : obj.layer || 'init') === 'active';
     if (kind === 'walls') return !!st.edit?.includes('walls') && wallMode(st, obj) !== 'hidden';
     if (kind === 'openings') {
       const w = this.floor.walls.find((x) => x.id === obj.wallId);
       return !!st.edit?.includes('openings') && w && wallMode(st, w) !== 'hidden';
     }
     if (kind === 'rooms') return !!st.edit?.includes('rooms');
-    if (kind === 'wires') return st.wires === 'edit';
     return true;
   }
 
-  /** Jaunas sienas īpašības: materiāls un biezums no sienu izvēlnes, statuss pēc stadijas. */
+  /** Jaunas sienas īpašības: no rīka (starpsienas veids) vai no konfigurācijas paneļa. */
   get newWallProps() {
-    const st = this.settings;
-    if (this.stage?.newWalls) return { thickness: st.partitionThickness, material: st.partitionMaterial, status: 'new', kind: 'partition' };
-    const props = { thickness: st.wallThickness, material: st.wallMaterial, status: 'existing' };
-    if (wallMaterial(st.wallMaterial)?.partition) props.kind = 'partition';
+    const st = this.settings, spec = this.state.spec;
+    const partition = this.stage?.newWalls;
+    const props = {
+      thickness: spec?.thickness ?? (partition ? st.partitionThickness : st.wallThickness),
+      material: spec?.material ?? (partition ? st.partitionMaterial : st.wallMaterial),
+      status: spec?.status ?? (partition ? 'new' : 'existing'),
+    };
+    const kind = spec?.kind ?? (partition || wallMaterial(props.material)?.partition ? 'partition' : null);
+    if (kind) props.kind = kind;
+    if (st.wallColor && st.wallColor !== 'white' && !spec?.kind) props.color = st.wallColor;
     return props;
   }
 
   setTool(tool, extra = {}) {
     this.finishChain();
+    this.finishLine();
     this.tool = tool;
     this.state = { ...extra };
     this.typed = '';
@@ -167,7 +195,7 @@ export class Editor2D {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(ctx, this.floor, this.view, this.theme, {
       stage: this.stage, width: this.w, height: this.h, grid: this.settings.grid, dims: this.settings.dims, units: this.settings.units,
-      selection: this.store.selection, hover: this.hover, onImage: () => this.requestRender(),
+      show: this.settings.show, selection: this.store.selection, hover: this.hover, faceHover: this.state.faceHover, onImage: () => this.requestRender(),
     });
     this.drawPreview(ctx);
     this.hooks.onView?.(this.view);
@@ -186,13 +214,18 @@ export class Editor2D {
       ctx.textBaseline = 'middle';
       ctx.fillText(text, p.x + 17, p.y + 20);
     };
+    const poly = (pts, close) => {
+      ctx.beginPath();
+      pts.map(S).forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      if (close) ctx.closePath();
+    };
     if (this.tool === 'wall' && st.anchor && c) {
       const a = S(st.anchor), b = S(c.p);
       ctx.lineCap = 'square';
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.lineWidth = this.newWallProps.thickness * this.view.scale;
+      ctx.lineWidth = Math.max(2, this.newWallProps.thickness * this.view.scale);
       ctx.strokeStyle = t.accent;
       ctx.globalAlpha = 0.45;
       ctx.stroke();
@@ -201,39 +234,48 @@ export class Editor2D {
       const L = dist(st.anchor, c.p);
       label(b, this.typed ? `${this.typed}▌ cm` : `${fmtLen(L, this.settings.units)}  ${Math.round(normAngle(Math.atan2(c.p.y - st.anchor.y, c.p.x - st.anchor.x)))}°`);
     }
-    if (this.tool === 'rect' && st.start && c) {
+    if ((this.tool === 'rect' || (this.tool === 'zone' && !st.points?.length)) && st.start && c) {
       const a = S(st.start), b = S(c.p);
       ctx.strokeStyle = t.accent;
-      ctx.lineWidth = Math.max(2, this.newWallProps.thickness * this.view.scale);
+      ctx.lineWidth = this.tool === 'rect' ? Math.max(2, this.newWallProps.thickness * this.view.scale) : 2;
       ctx.globalAlpha = 0.45;
       ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
       ctx.globalAlpha = 1;
-      const w = Math.abs(c.p.x - st.start.x), h = Math.abs(c.p.y - st.start.y);
-      label(b, `${fmtLen(w, this.settings.units)} × ${fmtLen(h, this.settings.units)}`);
+      label(b, `${fmtLen(Math.abs(c.p.x - st.start.x), this.settings.units)} × ${fmtLen(Math.abs(c.p.y - st.start.y), this.settings.units)}`);
     }
-    if (this.tool === 'dim' && st.a && c) {
-      const a = S(st.a), b = S(c.p);
+    if (this.tool === 'zone' && st.points?.length && c) {
+      poly([...st.points, c.p], false);
       ctx.strokeStyle = t.accent;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if ((this.tool === 'dim' && st.a && c) || (this.tool === 'demolish' && st.sectionStart && c)) {
+      const a = S(st.a || st.sectionStart.point), b = S(this.tool === 'demolish' ? st.sectionEnd?.point || c.p : c.p);
+      ctx.strokeStyle = this.tool === 'demolish' ? t.demolish : t.accent;
+      ctx.lineWidth = this.tool === 'demolish' ? 6 : 1.5;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
-      label(b, fmtLen(dist(st.a, c.p), this.settings.units));
+      label(b, fmtLen(dist(st.a || st.sectionStart.point, this.tool === 'demolish' ? st.sectionEnd?.point || c.p : c.p), this.settings.units));
     }
-    if (this.tool === 'wire' && st.points?.length && c) {
-      ctx.beginPath();
-      [...st.points, c.p].map(S).forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-      ctx.strokeStyle = t.accent;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([7, 4]);
+    if (this.tool === 'line' && st.points?.length && c) {
+      const lt = LINE_TYPES[st.spec?.line] || LINE_TYPES.cable;
+      poly([...st.points, c.p], false);
+      ctx.strokeStyle = lt.color;
+      ctx.lineWidth = Math.max(2, lt.duct ? (st.spec?.width || 12) * this.view.scale : lt.width);
+      ctx.globalAlpha = 0.7;
+      ctx.setLineDash(lt.dash || []);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      const pts = [...st.points, c.p];
+      label(S(c.p), fmtLen(pts.reduce((s, p, i) => (i ? s + dist(p, pts[i - 1]) : 0), 0), this.settings.units));
     }
-    if ((this.tool === 'door' || this.tool === 'window') && st.ghost) {
+    if ((this.tool === 'opening' || this.tool === 'door' || this.tool === 'window') && st.ghost) {
       drawOpening(ctx, st.ghost.opening, st.ghost.wall, this.view, t, false, true);
     }
-    if (this.tool === 'place' && st.ghost) {
+    if ((this.tool === 'place' || this.tool === 'image') && st.ghost) {
       const it = st.ghost, p = S(it), k = itemDrawScale(it, this.view.scale);
       ctx.save();
       ctx.translate(p.x, p.y);
@@ -241,9 +283,10 @@ export class Editor2D {
       ctx.scale(this.view.scale * k, this.view.scale * k);
       ctx.lineWidth = 1 / (this.view.scale * k);
       ctx.globalAlpha = 0.65;
-      ctx.fillStyle = it.color;
+      ctx.fillStyle = it.color || '#ddd';
       ctx.strokeStyle = t.accent;
-      drawItem2D(ctx, it);
+      if (this.tool === 'image') ctx.strokeRect(-it.w / 2, -it.d / 2, it.w, it.d);
+      else drawItem2D(ctx, it);
       ctx.restore();
     }
     // Piesaistes punkts
@@ -268,8 +311,8 @@ export class Editor2D {
 
   // ---------- piesaiste ----------
   snap(p, { anchor = null, free = false } = {}) {
-    const f = this.floor, tol = this.tol * 1.4;
-    if (!free) {
+    const f = this.floor, tol = this.tol * 1.4, magnet = this.settings.magnet && !free;
+    if (magnet) {
       let best = null;
       for (const w of f.walls) {
         for (const q of [w.a, w.b]) {
@@ -280,18 +323,18 @@ export class Editor2D {
       if (best) return { p: { ...best.q }, snap: 'end' };
     }
     let q = p, kind = null;
-    if (anchor && !free) {
+    if (anchor && !free && this.settings.snap) {
       const v = sub(p, anchor);
       const L = Math.hypot(v.x, v.y);
       const ang = Math.round(Math.atan2(v.y, v.x) / (Math.PI / 12)) * (Math.PI / 12);
-      const Ls = this.settings.snap ? round(L, 1) : L;
+      const Ls = round(L, 1);
       q = { x: anchor.x + Math.cos(ang) * Ls, y: anchor.y + Math.sin(ang) * Ls };
       kind = 'angle';
     } else if (this.settings.snap && !free) {
       q = { x: round(p.x, 5), y: round(p.y, 5) };
       kind = 'grid';
     }
-    if (!free) {
+    if (magnet) {
       const nw = nearestWall(f, q, tol);
       if (nw) {
         if (anchor) {
@@ -305,14 +348,33 @@ export class Editor2D {
     return { p: q, snap: kind };
   }
 
+  /** Līnijas punkts pielīp priekšmetiem un iepriekšējā punkta horizontālei/vertikālei. */
+  snapLine(p, free) {
+    if (!free && this.settings.magnet) {
+      let best = null;
+      for (const it of this.floor.items) {
+        if (layerMode(this.stage, categoryOf(it)) === 'hidden') continue;
+        const d = dist(p, it);
+        if (d < this.tol * 2 && (!best || d < best.d)) best = { d, it };
+      }
+      if (best) return { x: best.it.x, y: best.it.y };
+      const last = this.state.points?.[this.state.points.length - 1];
+      if (last) {
+        if (Math.abs(p.x - last.x) < this.tol) return { x: last.x, y: round(p.y, 5) };
+        if (Math.abs(p.y - last.y) < this.tol) return { x: round(p.x, 5), y: last.y };
+      }
+    }
+    return this.settings.snap && !free ? { x: round(p.x, 5), y: round(p.y, 5) } : p;
+  }
+
   // ---------- trāpījumi ----------
   hitTest(p) {
     const h = this.rawHit(p);
     return h && this.selectable(h.kind, this.floor[h.kind].find((x) => x.id === h.id)) ? h : null;
   }
 
-  rawHit(p) {
-    const f = this.floor, tol = this.tol, ok = (kind, obj) => this.selectable(kind, obj);
+  rawHit(p, opts = {}) {
+    const f = this.floor, tol = this.tol, ok = opts.any ? () => true : (kind, obj) => this.selectable(kind, obj);
     for (const o of f.openings) {
       const w = f.walls.find((x) => x.id === o.wallId);
       if (!w || !ok('openings', o)) continue;
@@ -335,21 +397,33 @@ export class Editor2D {
       const pr = projectOnSegment(p, add(d.a, mul(n, d.offset || 0)), add(d.b, mul(n, d.offset || 0)));
       if (pr.dist <= tol) return { kind: 'dims', id: d.id };
     }
-    for (const wr of f.wires || []) {
-      if (!ok('wires', wr)) continue;
-      for (let i = 0; i + 1 < wr.points.length; i++) {
-        if (projectOnSegment(p, wr.points[i], wr.points[i + 1]).dist <= tol) return { kind: 'wires', id: wr.id };
+    for (const ln of f.lines || []) {
+      if (!ok('lines', ln)) continue;
+      const half = LINE_TYPES[ln.type]?.duct ? (ln.width || 12) / 2 : 0;
+      for (let i = 0; i + 1 < ln.points.length; i++) {
+        if (projectOnSegment(p, ln.points[i], ln.points[i + 1]).dist <= tol + half) return { kind: 'lines', id: ln.id };
       }
     }
     for (const w of f.walls) {
       if (ok('walls', w) && projectOnSegment(p, w.a, w.b).dist <= w.thickness / 2 + tol * 0.3) return { kind: 'walls', id: w.id };
     }
-    if (this.stage?.edit?.includes('rooms') || !this.stage) {
+    for (const z of [...(f.zones || [])].reverse()) {
+      if (ok('zones', z) && pointInPolygon(p, z.points)) return { kind: 'zones', id: z.id };
+    }
+    if (opts.any || this.stage?.edit?.includes('rooms') || !this.stage) {
       for (const r of [...f.rooms].reverse()) {
         if (pointInPolygon(p, r.points)) return { kind: 'rooms', id: r.id };
       }
     }
     return null;
+  }
+
+  /** Sienas virsma pie punkta: siena un puse ('p' — normāles pusē, 'n' — pretējā). */
+  faceAt(p) {
+    const nw = nearestWall({ walls: this.floor.walls.filter((w) => wallMode(this.stage, w) !== 'hidden' && w.kind !== 'virtual') }, p, 35);
+    if (!nw) return null;
+    const side = dot(sub(p, nw.point), wallNormal(nw.wall)) >= 0 ? 'p' : 'n';
+    return { wall: nw.wall, side };
   }
 
   // ---------- notikumi ----------
@@ -362,18 +436,20 @@ export class Editor2D {
     c.addEventListener('pointerleave', () => {
       this.cursor = null;
       this.hover = null;
+      this.state.faceHover = null;
       this.requestRender();
     });
     c.addEventListener('dblclick', (e) => {
       if (this.tool === 'wall') this.finishChain();
-      else if (this.tool === 'wire') this.finishWire();
+      else if (this.tool === 'line') this.finishLine();
+      else if (this.tool === 'zone') this.finishZone();
       else if (this.tool === 'select') this.hooks.onEdit?.();
       e.preventDefault();
     });
     c.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      if (this.tool === 'wall') this.finishChain();
-      else if (this.tool === 'wire') this.finishWire();
+      if (this.tool === 'wall' && this.state.anchor) this.finishChain();
+      else if (this.tool === 'line' && this.state.points?.length) this.finishLine();
       else if (this.tool !== 'select') this.setTool('select');
     });
     c.addEventListener('wheel', (e) => {
@@ -408,12 +484,26 @@ export class Editor2D {
       case 'select': return this.downSelect(p, sx, sy, e);
       case 'wall': return this.clickWall(this.snap(p, { anchor: this.state.anchor, free }).p);
       case 'rect': this.state.start = this.snap(p, { free }).p; return;
-      case 'door': case 'window': return this.placeOpening(p);
+      case 'zone':
+        if (this.state.points?.length) return this.clickZonePoint(this.snap(p, { free }).p);
+        if (this.state.spec?.mode === 'lines') {
+          this.state.points = [this.snap(p, { free }).p];
+          return;
+        }
+        this.state.start = this.snap(p, { free }).p;
+        this.state.downAt = { sx, sy };
+        return;
+      case 'door': case 'window': case 'opening': return this.placeOpening(p);
       case 'place': return this.placeItem(p, e.altKey);
+      case 'image': return this.placeImage(p);
       case 'dim': return this.clickDim(this.snap(p, { anchor: this.state.a, free }).p);
       case 'text': return this.placeText(p);
-      case 'demolish': return this.toggleDemolish(p);
-      case 'wire': return this.clickWire(this.snapWire(p, free));
+      case 'line': return this.clickLine(this.snapLine(p, free));
+      case 'demolish': return this.downDemolish(p);
+      case 'undemolish': return this.undemolishAt(p);
+      case 'finish': return this.applyFinish(p);
+      case 'remove': return this.removeFinish(p);
+      case 'eraser': return this.eraseAt(p);
     }
   }
 
@@ -433,6 +523,9 @@ export class Editor2D {
     this.hooks.onCursor?.(p);
     const free = e.shiftKey;
     if (this.drag) return this.moveDrag(p, sx, sy, e);
+    const setHover = (h) => {
+      if (JSON.stringify(h) !== JSON.stringify(this.hover)) this.hover = h;
+    };
     switch (this.tool) {
       case 'select': {
         const h = this.hitTest(p);
@@ -446,14 +539,25 @@ export class Editor2D {
         return;
       }
       case 'wall': this.cursor = this.snap(p, { anchor: this.state.anchor, free }); break;
-      case 'rect': case 'dim': this.cursor = this.snap(p, { anchor: this.tool === 'dim' ? this.state.a : null, free }); break;
-      case 'door': case 'window': this.ghostOpening(p); break;
+      case 'rect': case 'dim': case 'zone': this.cursor = this.snap(p, { anchor: this.tool === 'dim' ? this.state.a : null, free }); break;
+      case 'door': case 'window': case 'opening': this.ghostOpening(p); break;
       case 'place': this.ghostItem(p, e.altKey); break;
-      case 'wire': this.cursor = { p: this.snapWire(p, free), snap: null }; break;
+      case 'image': this.ghostImage(p); break;
+      case 'line': this.cursor = { p: this.snapLine(p, free), snap: null }; break;
       case 'demolish': {
-        const nw = nearestWall(this.floor, p, 30 / this.view.scale + 10);
-        const h = nw && wallMode(this.stage, nw.wall) !== 'hidden' ? { kind: 'walls', id: nw.wall.id } : null;
-        if (JSON.stringify(h) !== JSON.stringify(this.hover)) this.hover = h;
+        if (this.state.sectionStart) this.state.sectionEnd = projectOnWall(this.state.sectionStart.wall, p);
+        setHover(this.demolishTarget(p));
+        this.cursor = { p };
+        break;
+      }
+      case 'undemolish': case 'eraser': setHover(this.tool === 'eraser' ? this.eraseTarget(p) : this.undemolishTarget(p)); this.cursor = { p }; break;
+      case 'finish': case 'remove': {
+        const tgt = this.tool === 'finish' ? this.state.spec?.target : null;
+        const faceMode = this.tool === 'finish' ? FACE_TARGETS.has(tgt) : !!REMOVE_BY_STAGE[this.stage?.id]?.face;
+        const face = faceMode ? this.faceAt(p) : null;
+        this.state.faceHover = face ? { id: face.wall.id, side: face.side } : null;
+        const room = !face ? this.floor.rooms.find((r) => pointInPolygon(p, r.points)) : null;
+        setHover(room ? { kind: 'rooms', id: room.id } : null);
         this.cursor = { p };
         break;
       }
@@ -468,8 +572,21 @@ export class Editor2D {
     if (this.tool === 'rect' && this.state.start && this.cursor) {
       const a = this.state.start, b = this.cursor.p;
       this.state.start = null;
-      if (Math.abs(b.x - a.x) > 30 && Math.abs(b.y - a.y) > 30) this.createRect(a, b);
+      if (Math.abs(b.x - a.x) > 10 && Math.abs(b.y - a.y) > 10) this.createRect(a, b);
     }
+    if (this.tool === 'zone' && this.state.start) {
+      const a = this.state.start, b = this.cursor?.p || a;
+      const { sx, sy } = this.eventPoint(e);
+      const moved = Math.hypot(sx - this.state.downAt.sx, sy - this.state.downAt.sy) > 8;
+      this.state.start = null;
+      if (moved && Math.abs(b.x - a.x) > 5 && Math.abs(b.y - a.y) > 5) {
+        this.createZone([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }]);
+      } else {
+        this.state.points = [a];
+        this.status('Klikšķini nākamos stūrus; noslēdz, klikšķinot pirmajā punktā vai ar dubultklikšķi.');
+      }
+    }
+    if (this.tool === 'demolish' && this.state.sectionStart) this.finishSection();
     if (this.drag?.moved && this.drag.mode !== 'pan') this.store.touch();
     this.drag = null;
     this.requestRender();
@@ -500,9 +617,7 @@ export class Editor2D {
     }
     const obj = this.store.selected();
     this.drag = { mode: 'move', start: p, sx, sy, orig: JSON.parse(JSON.stringify(obj)), kind: hit.kind };
-    if (hit.kind === 'walls') {
-      this.drag.joints = [{ ...obj.a }, { ...obj.b }];
-    }
+    if (hit.kind === 'walls') this.drag.joints = [{ ...obj.a }, { ...obj.b }];
   }
 
   moveDrag(p, sx, sy, e) {
@@ -536,9 +651,8 @@ export class Editor2D {
     const o = dr.orig;
     switch (dr.kind) {
       case 'items': {
-        const pos = add(o, delta);
-        Object.assign(obj, pos, { rot: o.rot });
-        if (!e.altKey) this.magnet(obj);
+        Object.assign(obj, add(o, delta), { rot: o.rot });
+        if (!e.altKey && this.settings.magnet && obj.kind !== '__image') this.magnet(obj);
         break;
       }
       case 'openings': {
@@ -564,10 +678,9 @@ export class Editor2D {
       }
       case 'labels': Object.assign(obj, add(o, delta)); break;
       case 'dims': obj.a = add(o.a, delta); obj.b = add(o.b, delta); break;
-      case 'wires': obj.points = o.points.map((q) => add(q, delta)); break;
+      case 'lines': case 'zones': obj.points = o.points.map((q) => add(q, delta)); break;
     }
     this.requestRender();
-    this.hooks.onLiveChange?.();
   }
 
   /** Pievelk priekšmetu pie tuvākās sienas un pagriež ar aizmuguri pret to. */
@@ -587,7 +700,7 @@ export class Editor2D {
     return true;
   }
 
-  // ---------- rīki ----------
+  // ---------- sienas ----------
   clickWall(p) {
     const st = this.state;
     if (!st.anchor) {
@@ -611,7 +724,10 @@ export class Editor2D {
   }
 
   finishChain() {
-    if (this.tool === 'wall') this.state = {};
+    if (this.tool === 'wall') {
+      const spec = this.state.spec;
+      this.state = spec ? { spec } : {};
+    }
     this.typed = '';
     this.requestRender();
   }
@@ -627,27 +743,28 @@ export class Editor2D {
 
   createRect(a, b) {
     const pts = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
+    const props = this.newWallProps;
     this.store.commit((f) => {
       for (let i = 0; i < 4; i++) {
         const p = pts[i], q = pts[(i + 1) % 4];
-        if (!segmentCovered(f, p, q)) f.walls.push({ ...makeWall(p, q, this.newWallProps.thickness, f.height), ...this.newWallProps });
+        if (!segmentCovered(f, p, q)) f.walls.push({ ...makeWall(p, q, props.thickness, f.height), ...props });
       }
     });
-    const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const room = this.floor.rooms.find((r) => pointInPolygon(c, r.points));
-    if (room && this.stage?.edit?.includes('rooms')) this.store.select({ kind: 'rooms', id: room.id });
   }
 
+  // ---------- ailes ----------
   ghostOpening(p) {
-    const nw = nearestWall(this.floor, p, 40 / this.view.scale + 10);
+    const nw = nearestWall({ walls: this.floor.walls.filter((w) => wallMode(this.stage, w) !== 'hidden' && w.kind !== 'virtual') }, p, 40 / this.view.scale + 10);
     if (!nw) {
       this.state.ghost = null;
       return;
     }
-    const o = makeOpening(this.tool, nw.wall.id, this.settings.snap ? round(nw.pos, 5) : nw.pos);
+    const spec = this.state.spec || { type: this.tool === 'door' ? 'door' : 'window' };
+    const o = makeOpening(spec.type, nw.wall.id, this.settings.snap ? round(nw.pos, 5) : nw.pos, { ...spec, t: undefined, name: undefined, icon: undefined });
+    delete o.t; delete o.name; delete o.icon;
+    if (this.stage?.newWalls) o.status = 'new';
     clampOpening(o, nw.wall);
-    const side = Math.sign(dotN(p, nw)) || 1;
-    o.swing = side < 0;
+    o.swing = dotN(p, nw) < 0;
     this.state.ghost = { opening: o, wall: nw.wall };
   }
 
@@ -662,20 +779,26 @@ export class Editor2D {
       this.status('Siena ir īsāka par aili.');
       return;
     }
-    this.store.commit((f) => f.openings.push(g.opening));
-    this.store.select({ kind: 'openings', id: g.opening.id });
-    this.state.ghost = null;
+    const o = { ...g.opening, id: uid() };
+    this.store.commit((f) => f.openings.push(o));
+    this.store.select({ kind: 'openings', id: o.id });
   }
 
+  // ---------- priekšmeti un attēli ----------
   ghostItem(p, free) {
     const def = byKind(this.state.kind);
     if (!def) return;
-    const g = this.state.ghost || { id: uid(), kind: def.kind, name: def.name, w: def.w, d: def.d, h: def.h, elev: def.elev, rot: 0, color: def.color };
+    const over = this.state.over || {};
+    let elev = def.elev;
+    if (def.electric === 'socket' || def.electric === 'weak') elev = this.settings.socketHeight ?? elev;
+    if (def.electric === 'box') elev = this.settings.boxHeight ?? elev;
+    const g = this.state.ghost || { id: uid(), kind: def.kind, name: def.name, w: over.w ?? def.w, d: over.d ?? def.d, h: over.h ?? def.h, elev, rot: 0, color: def.color, layer: this.layer };
+    Object.assign(g, { w: over.w ?? g.w, d: over.d ?? g.d, h: over.h ?? g.h });
     const q = this.settings.snap && !free ? { x: round(p.x, 5), y: round(p.y, 5) } : p;
     Object.assign(g, q);
-    if (!free) {
+    if (!free && this.settings.magnet) {
       if (!this.magnet(g)) g.rot = this.state.rot || 0;
-    }
+    } else g.rot = this.state.rot || 0;
     this.state.ghost = g;
   }
 
@@ -688,6 +811,21 @@ export class Editor2D {
     this.state.ghost = { ...g, id: uid() };
   }
 
+  ghostImage(p) {
+    const st = this.state;
+    st.ghost = st.ghost || { id: uid(), kind: '__image', name: 'Attēls', src: st.src, w: st.w || 200, d: st.d || 150, h: 1, elev: 0, rot: 0, layer: this.layer };
+    Object.assign(st.ghost, { x: p.x, y: p.y });
+  }
+
+  placeImage(p) {
+    this.ghostImage(p);
+    const g = { ...this.state.ghost };
+    this.store.commit((f) => f.items.push(g));
+    this.store.select({ kind: 'items', id: g.id });
+    this.setTool('select');
+  }
+
+  // ---------- izmēri un komentāri ----------
   clickDim(p) {
     if (!this.state.a) {
       this.state.a = p;
@@ -696,67 +834,207 @@ export class Editor2D {
     const a = this.state.a;
     this.state.a = null;
     if (dist(a, p) < 5) return;
-    const dm = { id: uid(), a, b: p, offset: 0 };
+    const dm = { id: uid(), a, b: p, offset: 0, layer: this.layer };
     this.store.commit((f) => f.dims.push(dm));
     this.store.select({ kind: 'dims', id: dm.id });
   }
 
-  toggleDemolish(p) {
-    const nw = nearestWall(this.floor, p, 30 / this.view.scale + 10);
-    if (!nw || wallMode(this.stage, nw.wall) === 'hidden') {
-      this.status('Klikšķini tieši uz sienas.');
-      return;
-    }
-    const w = nw.wall;
-    this.store.commit(() => { w.status = w.status === 'demolish' ? 'existing' : 'demolish'; });
-    this.status(w.status === 'demolish' ? 'Siena atzīmēta nojaukšanai.' : 'Atzīme noņemta.');
-  }
-
-  /** Vada punkts pielīp tuvākajam elektrības punktam. */
-  snapWire(p, free) {
-    if (!free) {
-      let best = null;
-      for (const it of this.floor.items) {
-        const def = byKind(it.kind);
-        if (!def?.electric) continue;
-        const d = dist(p, it);
-        if (d < this.tol * 2 && (!best || d < best.d)) best = { d, it };
-      }
-      if (best) return { x: best.it.x, y: best.it.y };
-      const last = this.state.points?.[this.state.points.length - 1];
-      if (last && this.settings.snap) {
-        // Vadi parasti iet paralēli sienām — piesaiste horizontālei/vertikālei.
-        if (Math.abs(p.x - last.x) < this.tol) return { x: last.x, y: round(p.y, 5) };
-        if (Math.abs(p.y - last.y) < this.tol) return { x: round(p.x, 5), y: last.y };
-      }
-    }
-    return this.settings.snap && !free ? { x: round(p.x, 5), y: round(p.y, 5) } : p;
-  }
-
-  clickWire(p) {
-    const st = this.state;
-    st.points = st.points || [];
-    const last = st.points[st.points.length - 1];
-    if (last && dist(last, p) < 1) return this.finishWire();
-    st.points.push(p);
-    this.requestRender();
-  }
-
-  finishWire() {
-    const pts = this.state.points || [];
-    this.state.points = [];
-    if (pts.length < 2) return this.requestRender();
-    const wr = { id: uid(), points: pts, color: '#d93025' };
-    this.store.commit((f) => { (f.wires = f.wires || []).push(wr); });
-    this.store.select({ kind: 'wires', id: wr.id });
-  }
-
   placeText(p) {
-    const l = { id: uid(), x: p.x, y: p.y, text: 'Uzraksts', size: 14 };
+    const l = { id: uid(), x: p.x, y: p.y, text: 'Komentārs', size: 14, layer: this.layer };
     this.store.commit((f) => f.labels.push(l));
     this.store.select({ kind: 'labels', id: l.id });
     this.setTool('select');
     this.hooks.onEdit?.();
+  }
+
+  // ---------- līnijas (caurules, kabeļi, gaisa vadi, sijas, margas) ----------
+  clickLine(p) {
+    const st = this.state;
+    st.points = st.points || [];
+    const last = st.points[st.points.length - 1];
+    if (last && dist(last, p) < 1) return this.finishLine();
+    st.points.push(p);
+    this.requestRender();
+  }
+
+  finishLine() {
+    if (this.tool !== 'line') return;
+    const pts = this.state.points || [];
+    this.state.points = [];
+    if (pts.length < 2) return this.requestRender();
+    const spec = this.state.spec || { line: 'cable' };
+    const ln = { id: uid(), type: spec.line, points: pts, layer: this.layer };
+    if (spec.label) ln.label = spec.label;
+    if (LINE_TYPES[spec.line]?.duct) Object.assign(ln, { width: spec.width || 12, height: spec.height || 6, round: !!spec.round });
+    if (spec.line === 'beam') Object.assign(ln, { width: spec.width || 20, height: spec.height || 30 });
+    this.store.commit((f) => { (f.lines = f.lines || []).push(ln); });
+    this.store.select({ kind: 'lines', id: ln.id });
+  }
+
+  // ---------- zonas (siltā grīda, atvērumi, terase, zonējums) ----------
+  clickZonePoint(p) {
+    const pts = this.state.points;
+    if (pts.length >= 3 && dist(p, pts[0]) < this.tol * 1.5) return this.finishZone();
+    pts.push(p);
+    this.requestRender();
+  }
+
+  finishZone() {
+    if (this.tool !== 'zone') return;
+    const pts = this.state.points || [];
+    this.state.points = [];
+    if (pts.length >= 3) this.createZone(pts);
+    this.requestRender();
+  }
+
+  createZone(points) {
+    const spec = this.state.spec || { zone: 'figure' };
+    const z = { id: uid(), type: spec.zone, points: points.map((q) => ({ ...q })), layer: this.layer };
+    if (spec.zone === 'heatCable' || spec.zone === 'heatWater') Object.assign(z, { pitch: 15, pattern: 'snake' });
+    this.store.commit((f) => { (f.zones = f.zones || []).push(z); });
+    this.store.select({ kind: 'zones', id: z.id });
+  }
+
+  // ---------- demontāža ----------
+  demolishTarget(p) {
+    const target = this.state.target || 'wall';
+    const f = this.floor;
+    if (target === 'opening') {
+      const h = this.rawHit(p, { any: true });
+      return h?.kind === 'openings' ? h : null;
+    }
+    if (target === 'radiator' || target === 'panel') {
+      const fam = target === 'radiator' ? ['radiator', 'towel'] : ['panel'];
+      const it = f.items.find((x) => fam.includes(byKind(x.kind)?.sym) && dist(p, x) < Math.max(x.w, x.d) / 2 + this.tol);
+      return it ? { kind: 'items', id: it.id } : null;
+    }
+    const nw = nearestWall({ walls: f.walls.filter((w) => wallMode(this.stage, w) !== 'hidden') }, p, 30 / this.view.scale + 10);
+    return nw ? { kind: 'walls', id: nw.wall.id } : null;
+  }
+
+  downDemolish(p) {
+    const target = this.state.target || 'wall';
+    if (target === 'section') {
+      const nw = nearestWall({ walls: this.floor.walls.filter((w) => wallMode(this.stage, w) === 'normal') }, p, 30 / this.view.scale + 10);
+      if (!nw) return this.status('Velc gar sienu no posma sākuma līdz beigām.');
+      this.state.sectionStart = { wall: nw.wall, ...projectOnWall(nw.wall, p) };
+      this.state.sectionEnd = this.state.sectionStart;
+      return;
+    }
+    const h = this.demolishTarget(p);
+    if (!h) return this.status('Klikšķini tieši uz objekta.');
+    const obj = this.floor[h.kind].find((x) => x.id === h.id);
+    this.store.commit(() => { obj.status = obj.status === 'demolish' ? (h.kind === 'walls' ? 'existing' : undefined) : 'demolish'; });
+    this.status(obj.status === 'demolish' ? 'Atzīmēts demontāžai.' : 'Atzīme noņemta.');
+  }
+
+  /** Sienas posma demontāža: siena tiek sadalīta, vidējā daļa — nojaucama. */
+  finishSection() {
+    const { sectionStart: s, sectionEnd: e } = this.state;
+    this.state.sectionStart = this.state.sectionEnd = null;
+    if (!s || !e) return;
+    const w = s.wall, L = wallLength(w);
+    let a = Math.min(s.pos, e.pos), b = Math.max(s.pos, e.pos);
+    if (b - a < 5) return;
+    a = a < 3 ? 0 : a;
+    b = L - b < 3 ? L : b;
+    const d = wallDir(w);
+    const P = (x) => add(w.a, mul(d, x));
+    this.store.commit((f) => {
+      const pieces = [[0, a], [a, b], [b, L]].filter(([x0, x1]) => x1 - x0 > 0.5);
+      const made = pieces.map(([x0, x1]) => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), a: P(x0), b: P(x1), status: x0 === a && x1 === b ? 'demolish' : w.status }));
+      f.walls = f.walls.filter((x) => x !== w).concat(made);
+      for (const o of f.openings.filter((x) => x.wallId === w.id)) {
+        const host = made.find((m, i) => o.pos >= pieces[i][0] && o.pos <= pieces[i][1]) || made[0];
+        const i = made.indexOf(host);
+        o.wallId = host.id;
+        o.pos -= pieces[i][0];
+      }
+    });
+    this.status(`Demontējams posms: ${fmtLen(b - a, this.settings.units)}`);
+  }
+
+  undemolishTarget(p) {
+    const f = this.floor;
+    for (const o of f.openings) {
+      if (o.status !== 'demolish') continue;
+      const w = f.walls.find((x) => x.id === o.wallId);
+      if (w && dist(p, wallPoint(w, o.pos)) < o.width / 2 + this.tol) return { kind: 'openings', id: o.id };
+    }
+    for (const it of f.items) if (it.status === 'demolish' && dist(p, it) < Math.max(it.w, it.d) / 2 + this.tol) return { kind: 'items', id: it.id };
+    for (const w of f.walls) if (w.status === 'demolish' && projectOnSegment(p, w.a, w.b).dist < w.thickness / 2 + this.tol) return { kind: 'walls', id: w.id };
+    return null;
+  }
+
+  undemolishAt(p) {
+    const h = this.undemolishTarget(p);
+    if (!h) return this.status('Klikšķini uz sarkanā (demontējamā) objekta.');
+    const obj = this.floor[h.kind].find((x) => x.id === h.id);
+    this.store.commit(() => { if (h.kind === 'walls') obj.status = 'existing'; else delete obj.status; });
+  }
+
+  // ---------- apdare ----------
+  applyFinish(p) {
+    const spec = this.state.spec || {};
+    const f = this.floor;
+    if (FACE_TARGETS.has(spec.target)) {
+      const face = this.faceAt(p);
+      const room = !face && f.rooms.find((r) => pointInPolygon(p, r.points));
+      if (!face && !room) return this.status('Klikšķini pie sienas (vai telpas vidū — visām tās sienām).');
+      this.store.commit(() => {
+        const faces = face ? [face] : roomFaces(f, room);
+        for (const fc of faces) {
+          fc.wall.faces = fc.wall.faces || {};
+          fc.wall.faces[fc.side] = { ...(fc.wall.faces[fc.side] || {}), [spec.target]: spec.value };
+        }
+      });
+      return;
+    }
+    const field = ROOM_TARGETS[spec.target];
+    if (!field) return;
+    const zone = spec.target === 'floor' ? (f.zones || []).find((z) => z.type === 'floorZone' && pointInPolygon(p, z.points)) : null;
+    const room = f.rooms.find((r) => pointInPolygon(p, r.points));
+    if (!zone && !room) return this.status('Klikšķini telpas iekšpusē.');
+    this.store.commit(() => {
+      const obj = zone || room;
+      if (spec.target === 'ceilingMolding') obj.ceilingMolding = !obj.ceilingMolding;
+      else obj[zone ? 'finish' : field] = spec.value;
+    });
+    this.store.select(zone ? { kind: 'zones', id: zone.id } : { kind: 'rooms', id: room.id });
+  }
+
+  removeFinish(p) {
+    const f = this.floor;
+    const rule = REMOVE_BY_STAGE[this.stage?.id] || { room: Object.values(ROOM_TARGETS), face: [...FACE_TARGETS] };
+    const target = this.state.spec?.target;
+    const face = rule.face ? this.faceAt(p) : null;
+    this.store.commit(() => {
+      if (face) {
+        const fc = face.wall.faces?.[face.side];
+        if (fc) for (const k of rule.face) if (!target || k.toLowerCase().includes(target.toLowerCase())) delete fc[k];
+        return;
+      }
+      const zone = rule.zone ? (f.zones || []).find((z) => z.type === 'floorZone' && pointInPolygon(p, z.points)) : null;
+      if (zone) {
+        delete zone.finish;
+        return;
+      }
+      const room = f.rooms.find((r) => pointInPolygon(p, r.points));
+      if (room) for (const k of rule.room || []) delete room[k];
+    });
+  }
+
+  // ---------- dzēšgumija ----------
+  eraseTarget(p) {
+    const h = this.hitTest(p);
+    return h && h.kind !== 'rooms' ? h : null;
+  }
+
+  eraseAt(p) {
+    const h = this.eraseTarget(p);
+    if (!h) return;
+    this.store.selection = h;
+    this.store.deleteSelected();
   }
 
   // ---------- tastatūra ----------
@@ -779,12 +1057,17 @@ export class Editor2D {
         return true;
       }
     }
-    if (k === 'Enter' && this.tool === 'wire') {
-      this.finishWire();
+    if (k === 'Enter' && this.tool === 'line') {
+      this.finishLine();
+      return true;
+    }
+    if (k === 'Enter' && this.tool === 'zone') {
+      this.finishZone();
       return true;
     }
     if (k === 'Escape') {
-      if (this.tool === 'wire' && this.state.points?.length) this.finishWire();
+      if (this.tool === 'line' && this.state.points?.length) this.finishLine();
+      else if (this.tool === 'zone' && this.state.points?.length) this.finishZone();
       else if (this.tool === 'wall' && this.state.anchor) this.finishChain();
       else if (this.tool !== 'select') this.setTool('select');
       else this.store.select(null);
@@ -826,3 +1109,22 @@ const dotN = (p, nw) => {
   const n = wallNormal(nw.wall);
   return (p.x - nw.point.x) * n.x + (p.y - nw.point.y) * n.y;
 };
+const projectOnWall = (w, p) => {
+  const pr = projectOnSegment(p, w.a, w.b);
+  return { pos: pr.t * wallLength(w), point: pr.point };
+};
+
+/** Visas sienu virsmas, kas robežojas ar telpu (to iekšpuse). */
+export function roomFaces(floor, room) {
+  const out = [];
+  for (const w of floor.walls) {
+    if (w.status === 'demolish' || w.kind === 'virtual') continue;
+    const mid = wallPoint(w, wallLength(w) / 2), n = wallNormal(w);
+    for (const [side, s] of [['p', 1], ['n', -1]]) {
+      if (pointInPolygon(add(mid, mul(n, s * (w.thickness / 2 + 5))), room.points)) out.push({ wall: w, side });
+    }
+  }
+  return out;
+}
+
+export { FINISHES, ZONE_TYPES };

@@ -124,9 +124,18 @@ export function sampleProject() {
   // Elektroinstalācija
   I('panel', 312, 650, 270);
   I('junction', 330, 460, 0);
-  f.wires.push({ id: uid(), color: '#d93025', points: [{ x: 312, y: 650 }, { x: 330, y: 650 }, { x: 330, y: 460 }] });
-  f.wires.push({ id: uid(), color: '#d93025', points: [{ x: 330, y: 460 }, { x: 345, y: 460 }, { x: 345, y: 432 }] });
-  f.wires.push({ id: uid(), color: '#2f6fd6', points: [{ x: 330, y: 460 }, { x: 330, y: 400 }, { x: 250, y: 400 }, { x: 250, y: 150 }] });
+  const cable = (points, label = 'Kabelis 3 × 2,5') => f.lines.push({ id: uid(), type: 'cable', layer: 'cables', label, points });
+  cable([{ x: 312, y: 650 }, { x: 330, y: 650 }, { x: 330, y: 460 }]);
+  cable([{ x: 330, y: 460 }, { x: 345, y: 460 }, { x: 345, y: 432 }], 'Kabelis 3 × 1,5');
+  cable([{ x: 330, y: 460 }, { x: 330, y: 400 }, { x: 250, y: 400 }, { x: 250, y: 150 }], 'Kabelis 3 × 1,5');
+  // Ūdensapgāde: caurules no stāvvada uz vannas istabu un virtuvi
+  f.items.push({ id: uid(), kind: 'cold_water_supply_riser', name: 'Aukstā ūdens stāvvads', x: 285, y: 440, w: 15, d: 15, h: 270, elev: 0, rot: 0, color: '#9fb7cf', layer: 'init' });
+  f.lines.push({ id: uid(), type: 'cold', layer: 'waterplan', points: [{ x: 285, y: 440 }, { x: 150, y: 440 }, { x: 150, y: 429 }] });
+  f.lines.push({ id: uid(), type: 'hot', layer: 'waterplan', points: [{ x: 280, y: 448 }, { x: 172, y: 448 }, { x: 172, y: 429 }] });
+  // Apkure: siltā grīda vannas istabā
+  f.zones.push({ id: uid(), type: 'heatCable', layer: 'warm_floor', pitch: 15, points: [{ x: 30, y: 520 }, { x: 200, y: 520 }, { x: 200, y: 600 }, { x: 30, y: 600 }] });
+  // Ventilācija no vannas istabas
+  f.lines.push({ id: uid(), type: 'ductExhaust', layer: 'ventilation', width: 12, height: 6, points: [{ x: 100, y: 470 }, { x: 100, y: 440 }, { x: 260, y: 440 }] });
 
   f.labels.push({ id: uid(), x: 400, y: 760, text: 'Ieeja', size: 14 });
   return p;

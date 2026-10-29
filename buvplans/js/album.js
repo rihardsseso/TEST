@@ -1,10 +1,27 @@
 // PDF albums: lapas ar plāniem, sienu skatiem, aprēķiniem un specifikāciju, noformētas ar zīmoga lauku.
 import { renderFloorImage, THEME } from './draw2d.js';
-import { stageById } from './stages.js';
-import { byKind } from './catalog.js';
+import { STAGES, customStage } from './stages.js';
+import { categoryOf } from './catalog.js';
 import { floorStats, specification, openingSchedule, fmt } from './calc.js';
 import { roomElevations, elevationSVG } from './elevations.js';
 import { statusLabel } from './model.js';
+
+const ROOM_FIELD = { floor: 'floorFinish', ceiling: 'ceiling', screed: 'screed', waterFloor: 'waterFloor', plasterCeiling: 'plasterCeiling' };
+
+/** Vai stāvā ir kaut kas, ko rādīt šīs stadijas plānā. */
+export function stageHasContent(f, st) {
+  const id = st.id;
+  if (id === 'init') return true;
+  if (st.shield) return false;
+  if (id === 'break_walls') return f.walls.some((w) => w.status === 'demolish') || f.openings.some((o) => o.status === 'demolish') || f.items.some((i) => i.status === 'demolish');
+  if (id === 'create_walls') return f.walls.some((w) => w.status === 'new');
+  if (id === 'rooms') return f.rooms.length > 0;
+  const own = (x) => x.layer === id;
+  if (f.items.some((i) => categoryOf(i) === id) || (f.lines || []).some(own) || (f.zones || []).some(own) || f.labels.some(own) || f.dims.some(own)) return true;
+  if (st.roomFill && f.rooms.some((r) => r[ROOM_FIELD[st.roomFill]])) return true;
+  if (st.faces && f.walls.some((w) => Object.values(w.faces || {}).some((fc) => fc?.[st.faces]))) return true;
+  return false;
+}
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -25,23 +42,13 @@ export function buildAlbum(project, { enabled, units = 'cm', snapshot }) {
   const floors = project.floors;
   const date = new Date().toLocaleDateString('lv-LV');
   if (enabled.has('plans')) {
-    const cats = (f, list) => f.items.some((it) => list.includes(byKind(it.kind)?.cat));
+    const stages = [...STAGES, ...(project.sheets || []).map(customStage)];
     for (const f of floors) {
-      const plans = [
-        ['base', 'esošā situācija', true],
-        ['demolish', 'demontāžas plāns', f.walls.some((w) => w.status === 'demolish')],
-        ['partitions', 'starpsienu plāns', f.walls.some((w) => w.status === 'new')],
-        ['rooms', 'grīdu segumi', f.rooms.length > 0],
-        ['furniture', 'mēbeļu plāns', cats(f, ['living', 'bedroom', 'kitchen', 'other'])],
-        ['water', 'santehnika un ūdensapgāde', cats(f, ['bath', 'water'])],
-        ['heating', 'apkures plāns', cats(f, ['heating'])],
-        ['wiring', 'elektrības plāns', cats(f, ['sockets', 'switches', 'lighting', 'wiring']) || f.wires?.length],
-      ];
-      for (const [id, title, has] of plans) {
-        if (!has) continue;
-        const stage = id === 'water' ? { ...stageById('water'), show: ['bath'] } : stageById(id);
+      for (const stage of stages) {
+        if (!stageHasContent(f, stage)) continue;
+        const title = stage.id === 'init' ? 'esošā situācija' : stage.name.toLowerCase();
         const img = renderFloorImage(f, PRINT_THEME, { width: 1500, height: 1000, units, stage });
-        sheets.push({ title: `${f.name} — ${title}`, body: `<img class="sheet-img" src="${img}" alt="${esc(f.name)} ${title}">`, note: `Izmēri ${units === 'mm' ? 'mm' : units === 'm' ? 'm' : 'cm'}` });
+        sheets.push({ title: `${f.name} — ${title}`, body: `<img class="sheet-img" src="${img}" alt="${esc(f.name)} ${esc(title)}">`, note: `Izmēri ${units === 'mm' ? 'mm' : units === 'm' ? 'm' : units === 'in' ? 'collās' : 'cm'}` });
       }
     }
   }
@@ -83,6 +90,18 @@ export function buildAlbum(project, { enabled, units = 'cm', snapshot }) {
         title: `${f.name} — specifikācija`,
         body: `<div class="sheet-cols"><table class="sheet-table"><thead><tr><th>Nr.</th><th>Priekšmets</th><th class="n">Izmēri, cm</th><th class="n">Skaits</th></tr></thead><tbody>${srows}</tbody></table>
         <table class="sheet-table"><thead><tr><th>Nr.</th><th>Aile</th><th class="n">P×A, cm</th><th class="n">Palodze, cm</th></tr></thead><tbody>${orows}</tbody></table></div>`,
+      });
+    }
+  }
+  if (enabled.has('spec')) {
+    for (const f of floors) {
+      const rails = f.shield?.rails || [];
+      const mods = rails.flatMap((r, ri) => r.modules.filter((m) => m.kind !== 'separator').map((m) => ({ ...m, rail: ri + 1 })));
+      if (!mods.length) continue;
+      const rows = mods.map((m, i) => `<tr><td>${i + 1}</td><td class="n">${m.rail}</td><td>${esc(m.group || '')}</td><td>${esc(m.label || m.name)}</td><td>${esc(m.rating || '')}</td><td class="n">${m.poles || ''}</td><td class="n">${String(m.size).replace('.', ',')}</td><td>${esc(m.comment || '')}</td></tr>`).join('');
+      sheets.push({
+        title: `${f.name} — sadales skapis`,
+        body: `<table class="sheet-table"><thead><tr><th>Nr.</th><th class="n">Sliede</th><th>Grupa</th><th>Modulis</th><th>Nominālvērtība</th><th class="n">Poli</th><th class="n">DIN</th><th>Komentārs</th></tr></thead><tbody>${rows}</tbody></table>`,
       });
     }
   }

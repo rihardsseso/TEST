@@ -40,9 +40,24 @@
 
   <div class="toolbar">
     <div class="tb-group">
-      <button type="button" class="tb-icon" id="saveBtn" title="Saglabāt projektu failā (JSON)" aria-label="Saglabāt"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z"/><path d="M8 4v5h8V4M7 20v-7h10v7"/></svg></button>
-      <button type="button" class="tb-icon" id="openBtn" title="Atvērt projektu" aria-label="Atvērt"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M12 10v7M9 14l3 3 3-3"/></svg></button>
-      <button type="button" class="tb-icon" id="printBtn" title="Rasējumu albums (PDF)" aria-label="Albums"><svg viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3"/><path d="M7 13h10v8H7z"/><text x="14.5" y="7" font-size="4.5" fill="currentColor" stroke="none" font-weight="700">PDF</text></svg></button>
+      <button type="button" class="tb-icon" id="saveBtn" title="Saglabāt" aria-label="Saglabāt"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z"/><path d="M8 4v5h8V4M7 20v-7h10v7"/></svg></button>
+      <div class="tb-dd">
+        <button type="button" class="tb-icon" id="exportMenuBtn" title="Eksports/Imports" aria-label="Eksports un imports"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M12 10v7M9 14l3 3 3-3"/></svg></button>
+        <div class="tb-menu" id="exportMenu" hidden>
+          <button type="button" data-exp="plan">Lejupielādēt .plan failu</button>
+          <button type="button" data-exp="load">Augšupielādēt .plan failu</button>
+          <button type="button" data-exp="pdf">Lejupielādēt .pdf albumu</button>
+          <button type="button" data-exp="png">Saglabāt plānu kā .png</button>
+          <button type="button" data-exp="svg">Saglabāt plānu kā .svg</button>
+        </div>
+      </div>
+      <div class="tb-dd">
+        <button type="button" class="tb-icon" id="printBtn" title="Albums drukai" aria-label="Albums drukai"><svg viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3"/><path d="M7 13h10v8H7z"/><text x="14.5" y="7" font-size="4.5" fill="currentColor" stroke="none" font-weight="700">PDF</text></svg></button>
+        <div class="tb-menu" id="printMenu" hidden>
+          <p>Lai izdrukātu plānu, sagatavo albumu ar rasējumiem un saglabā to kā .pdf.</p>
+          <button type="button" data-exp="pdf">Atvērt .pdf albumu</button>
+        </div>
+      </div>
     </div>
     <div class="tb-group tb-modes" role="tablist" aria-label="Skats">
       <button type="button" class="tb-mode" data-view="plan" role="tab" title="2D plāns"><svg viewBox="0 0 32 26"><rect x="3" y="3" width="26" height="20"/><path d="M3 12h9v11M12 3v5M20 3v20M20 14h9"/></svg><span>2D</span></button>
@@ -50,7 +65,7 @@
       <button type="button" class="tb-mode" data-view="3d" role="tab" title="3D skats"><svg viewBox="0 0 32 26"><path d="M16 2 4 8v11l12 6 12-6V8z"/><path d="M4 8l12 6 12-6M16 14v11"/></svg><span>3D</span></button>
     </div>
     <div class="tb-group">
-      <button type="button" class="tb-icon" id="calcBtn" title="Apjomi un aprēķini" aria-label="Aprēķini"><svg viewBox="0 0 24 24"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/><text x="2" y="9" font-size="6" fill="currentColor" stroke="none" font-weight="700">m²</text></svg></button>
+      <button type="button" class="tb-icon" id="calcBtn" title="Laukumi, apjomi un daudzumi" aria-label="Aprēķini"><svg viewBox="0 0 24 24"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/><text x="2" y="9" font-size="6" fill="currentColor" stroke="none" font-weight="700">m²</text></svg></button>
     </div>
     <div class="stage-tabs-wrap">
       <button type="button" class="stage-scroll left" id="stageLeft" aria-label="Iepriekšējās stadijas"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
@@ -62,14 +77,14 @@
   <div class="workspace">
     <aside class="leftbar" id="leftbar" aria-label="Rīki"></aside>
     <div class="flyout" id="flyout" hidden></div>
+    <div class="item-preview" id="itemPreview" hidden></div>
+    <div class="config-panel" id="configPanel" hidden></div>
 
     <main class="stage">
       <section class="view view-plan" data-view="plan" aria-label="2D plāns">
         <canvas id="plan" aria-label="Stāva plāns"></canvas>
-        <div class="help-links">
-          <button type="button" class="help-link" data-tip="move"><i>?</i>Kā pārvietot zīmējumu?</button>
-          <button type="button" class="help-link" data-tip="height"><i>?</i>Kā iestatīt griestu augstumu?</button>
-        </div>
+        <div class="shield-view" id="shieldView" hidden></div>
+        <div class="help-links" id="helpLinks"></div>
         <div class="tip-pop" id="tipPop" hidden></div>
         <div class="floor-selects">
           <div class="dd">
@@ -139,29 +154,34 @@
       <button type="button" class="link" id="bgBtn">Zīmēt plānu no attēla</button>
     </div>
     <div class="bb-tools">
-      <label class="units"><span class="sr">Mērvienības</span><select id="unitsSel"><option value="cm">cm</option><option value="mm">mm</option><option value="m">m</option></select></label>
+      <label class="units"><span class="sr">Mērvienības</span><select id="unitsSel"><option value="cm">cm</option><option value="mm">mm</option><option value="m">m</option><option value="in">in</option></select></label>
       <span class="bb-sep"></span>
       <button type="button" class="bb-btn" id="undoBtn" title="Atsaukt (Ctrl+Z)" aria-label="Atsaukt"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
-      <button type="button" class="bb-btn" id="redoBtn" title="Atcelt atsaukšanu (Ctrl+Y)" aria-label="Atcelt atsaukšanu"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+      <button type="button" class="bb-btn" id="redoBtn" title="Atkārtot (Ctrl+Y)" aria-label="Atkārtot"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
       <span class="bb-sep"></span>
       <button type="button" class="bb-btn" id="deleteBtn" title="Dzēst atlasīto (Del)" aria-label="Dzēst atlasīto"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>
+      <button type="button" class="bb-btn" data-tool-btn="eraser" title="Dzēst objektus ar klikšķi (E)" aria-label="Dzēšgumija"><svg viewBox="0 0 24 24"><path d="M14 4l6 6-9 9H6l-3-3z"/><path d="M9 9l6 6M6 19h14"/></svg></button>
       <span class="bb-sep"></span>
-      <button type="button" class="bb-toggle" data-setting="hints" title="Padomi" aria-label="Padomi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 16.5v.5"/></svg><span class="sw"></span></button>
-      <button type="button" class="bb-toggle" data-setting="dims" title="Izmēri" aria-label="Izmēri"><svg viewBox="0 0 24 24"><path d="M3 9v6M21 9v6M3 12h18M6 14l-2-2 2-2M18 10l2 2-2 2"/></svg><span class="sw"></span></button>
-      <button type="button" class="bb-toggle" data-setting="grid" title="Režģis" aria-label="Režģis"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16"/></svg><span class="sw"></span></button>
+      <button type="button" class="bb-toggle" data-setting="hints" title="Rādīt/slēpt padomus" aria-label="Padomi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 16.5v.5"/></svg><span class="sw"></span></button>
+      <button type="button" class="bb-toggle" data-setting="magnet" title="Ieslēgt/izslēgt magnētus" aria-label="Magnēti"><svg viewBox="0 0 24 24"><path d="M3 12h4M17 12h4M7 8l-3 4 3 4M17 8l3 4-3 4"/></svg><span class="sw"></span></button>
+      <button type="button" class="bb-toggle" id="showBtn" data-setting="elements" title="Rādīt/slēpt elementus" aria-label="Rādīt vai slēpt elementus"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="sw"></span></button>
       <span class="bb-sep"></span>
-      <button type="button" class="bb-btn" data-tool-btn="dim" title="Izmēra līnija (M)" aria-label="Izmēra līnija"><svg viewBox="0 0 24 24"><path d="M4 20 20 4M7 17l-2-2M10 14l-1-1M13 11l-2-2M16 8l-1-1"/><path d="M15 21h6v-6" /></svg></button>
-      <button type="button" class="bb-btn" data-tool-btn="text" title="Teksta komentārs (T)" aria-label="Teksts"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></button>
-      <button type="button" class="bb-btn" id="sheetBtn" title="Albuma lapas" aria-label="Albuma lapas"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/></svg></button>
-      <button type="button" class="bb-btn" id="fitBtn" title="Rādīt visu (0)" aria-label="Rādīt visu"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><circle cx="12" cy="12" r="2.5"/></svg></button>
-      <button type="button" class="bb-btn" id="rotateBtn" title="Pagriezt plānu par 90°" aria-label="Pagriezt plānu"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>
-      <button type="button" class="bb-btn" id="clearBtn" title="Notīrīt stāvu" aria-label="Notīrīt stāvu"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="m10 11 4 5M14 11l-4 5"/></svg></button>
-      <button type="button" class="bb-btn" id="settingsBtn" title="Iestatījumi" aria-label="Iestatījumi"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+      <button type="button" class="bb-btn" data-tool-btn="dim" title="Pievienot izmēru (M)" aria-label="Pievienot izmēru"><svg viewBox="0 0 24 24"><path d="M4 20 20 4M7 17l-2-2M10 14l-1-1M13 11l-2-2M16 8l-1-1"/><path d="M15 21h6v-6"/></svg></button>
+      <button type="button" class="bb-btn" id="figureBtn" title="Zīmēt figūru" aria-label="Zīmēt figūru"><svg viewBox="0 0 24 24"><path d="M4 20l2-6L16 4l4 4-10 10z"/><path d="M14 6l4 4"/></svg></button>
+      <button type="button" class="bb-btn" data-tool-btn="text" title="Komentārs (T)" aria-label="Komentārs"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></button>
+      <button type="button" class="bb-btn" id="imageBtn" title="Pievienot attēlu" aria-label="Pievienot attēlu"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M8 17l3-3 2 2 2-3 2 4z"/></svg></button>
+      <span class="bb-sep"></span>
+      <button type="button" class="bb-btn" id="fitBtn" title="Centrēt projektu (0)" aria-label="Centrēt projektu"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+      <button type="button" class="bb-btn" id="rotateBtn" title="Pagriezt/apgriezt projektu" aria-label="Pagriezt vai apgriezt projektu"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>
+      <button type="button" class="bb-btn" id="clearBtn" title="Notīrīt zīmējumus" aria-label="Notīrīt zīmējumus"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="m10 11 4 5M14 11l-4 5"/></svg></button>
+      <button type="button" class="bb-btn" id="settingsBtn" title="Programmas iestatījumi" aria-label="Iestatījumi"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
     </div>
   </footer>
 </div>
 
 <div class="popup" id="settingsPop" hidden></div>
+<div class="popup" id="showPop" hidden></div>
+<div class="popup popup-small" id="rotatePop" hidden></div>
 <div class="popup popup-left" id="bgPop" hidden></div>
 
 <dialog id="projectsDialog" class="dialog" aria-labelledby="projectsTitle">
@@ -169,34 +189,36 @@
   <div class="row">
     <button type="button" class="btn primary" id="newProject">Jauns projekts</button>
     <button type="button" class="btn" id="sampleProject">Parauga dzīvoklis</button>
-    <button type="button" class="btn" id="importBtn">Importēt JSON</button>
-    <button type="button" class="btn" id="exportBtn">Eksportēt šo projektu</button>
+    <button type="button" class="btn" id="importBtn">Augšupielādēt .plan</button>
+    <button type="button" class="btn" id="exportBtn">Lejupielādēt .plan</button>
   </div>
-  <p class="hint">Projekti tiek glabāti šajā pārlūkā. Lai pārnestu uz citu datoru vai nodotu kolēģim, eksportē JSON. Mapi un statusu var mainīt iestatījumos (zobrats apakšā).</p>
+  <p class="hint">Projekti tiek glabāti šajā pārlūkā. Lai pārnestu uz citu datoru vai nodotu kolēģim, lejupielādē .plan failu. Mapi un statusu var mainīt iestatījumos (zobrats apakšā).</p>
   <div id="projectList"></div>
 </dialog>
 
 <dialog id="helpDialog" class="dialog" aria-labelledby="helpTitle">
   <header class="dialog-head"><h2 id="helpTitle">Plānotāja palīdzība</h2><button type="button" class="icon-btn" id="helpClose" aria-label="Aizvērt"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
   <div class="help-body">
-    <h3>Darba gaita</h3>
+    <h3>Darba gaita pa lapām</h3>
     <ol>
-      <li><b>Pamatplāns</b> — klikšķini „Siena”, izvēlies sienas veidu (gāzbetons, keramzīts, ķieģeļi, koka karkass u. c.) un biezumu, tad zīmē. Ieliec durvis un logus. Sienas garumu var ierakstīt ar cipariem un Enter.</li>
-      <li><b>Demontāža</b> — klikšķini uz sienām, kuras nojauks. Tās kļūst sarkanas un nākamajās stadijās vairs nav.</li>
-      <li><b>Starpsienas</b> — uzzīmē jaunās starpsienas; tās tiek atzīmētas kā jaunas un ieskaitītas aprēķinos atsevišķi.</li>
-      <li><b>Telpas</b> — telpas veidojas pašas; šeit tās pārdēvē, izvēlas grīdas un sienu apdari, griestu augstumu.</li>
-      <li><b>Apkure, Mēbeles, Santehnika, Ūdensapgāde, Rozetes, Slēdži, Apgaismojums</b> — izvēlies priekšmetu kreisajā joslā un klikšķini plānā. Pie sienas tas pagriežas pats.</li>
-      <li><b>Elektroinstalācija</b> — rīks „Vads” savieno sadalni, kārbas, slēdžus un gaismekļus.</li>
-      <li><b>Sienas, 3D, Aprēķini, Albums</b> — viss veidojas automātiski no plāna.</li>
+      <li><b>Pamatplāns</b> — „Zīmēt sienu” vai „Zīmēt telpu”; konfigurācijas panelī izvēlies biezumu un materiālu (bloki, ķieģeļi, betons, ģipškartons, koks, stikls u. c.). Grupās „Logi”, „Durvis un ailes”, „Kāpnes”, „Komunikācijas” un „Būvkonstrukcijas” — ailes, kolonnas, stāvvadi, sijas.</li>
+      <li><b>Demontāža</b> — atzīmē nojaucamās sienas (visu vai posmu), ailes, radiatorus un santehniku; „Noņemt atlasi” atceļ.</li>
+      <li><b>Starpsienas</b> — ģipša, putu bloku, ķieģeļu, ģipškartona, stikla un līstīšu starpsienas, ģipškartona kārbas un telpas zonējums.</li>
+      <li><b>Telpas</b> — telpas veidojas no sienām pašas; klikšķini telpā, lai nosauktu un iestatītu griestu augstumu.</li>
+      <li><b>Apkure, Mēbeles, Santehnika, Ūdensapgāde, Rozetes, Slēdži, Apgaismojums, Kondicionieri, Ventilācija, Drošība</b> — grupās ir saliekamas sadaļas; „acs” rāda priekšskatu, „Meklēt objektus” atrod pēc nosaukuma.</li>
+      <li><b>Elektroinstalācija, Ūdensapgāde, Siltā grīda, Ventilācija</b> — kabeļi, caurules un gaisa vadi zīmējami ar lūzuma punktiem; garumi redzami aprēķinos.</li>
+      <li><b>Sadales skapis</b> — DIN sliedes, automātslēdži, releji, spailes, kopnes un savienojuma vadi.</li>
+      <li><b>Grīda, Sienas, Griesti, Hidroizolācija, Izolācija, Apmetums, Klons</b> — izvēlies materiālu un klikšķini telpā vai pie sienas.</li>
+      <li><b>Pievienot lapu</b> — sava lapa piezīmēm, figūrām un izmēriem.</li>
     </ol>
     <h3>Īsinājumtaustiņi</h3>
     <dl class="keys">
-      <div><dt>V</dt><dd>Atlasīt</dd></div><div><dt>W</dt><dd>Siena</dd></div><div><dt>K</dt><dd>Telpa (taisnstūris)</dd></div>
-      <div><dt>D</dt><dd>Durvis</dd></div><div><dt>L</dt><dd>Logs</dd></div><div><dt>M</dt><dd>Izmēra līnija</dd></div>
-      <div><dt>T</dt><dd>Teksts</dd></div><div><dt>X</dt><dd>Demontēt sienu</dd></div><div><dt>E</dt><dd>Vads</dd></div>
-      <div><dt>R</dt><dd>Pagriezt priekšmetu</dd></div><div><dt>Del</dt><dd>Dzēst</dd></div><div><dt>Ctrl+Z / Ctrl+Y</dt><dd>Atsaukt / atkārtot</dd></div>
-      <div><dt>Ctrl+D</dt><dd>Dublēt</dd></div><div><dt>Shift</dt><dd>Bez leņķu piesaistes</dd></div><div><dt>Alt</dt><dd>Bez piesaistes sienai</dd></div>
-      <div><dt>Atstarpe + vilkt</dt><dd>Bīdīt plānu</dd></div><div><dt>Ritenītis</dt><dd>Tuvināt</dd></div><div><dt>0</dt><dd>Rādīt visu</dd></div>
+      <div><dt>V</dt><dd>Atlasīt</dd></div><div><dt>W</dt><dd>Zīmēt sienu</dd></div><div><dt>D</dt><dd>Durvis</dd></div>
+      <div><dt>L</dt><dd>Logs</dd></div><div><dt>M</dt><dd>Pievienot izmēru</dd></div><div><dt>T</dt><dd>Komentārs</dd></div>
+      <div><dt>E</dt><dd>Dzēšgumija</dd></div><div><dt>R</dt><dd>Pagriezt priekšmetu</dd></div><div><dt>Del</dt><dd>Dzēst atlasīto</dd></div>
+      <div><dt>Esc / labā poga</dt><dd>Izslēgt rīku</dd></div><div><dt>Ctrl+Z / Ctrl+Y</dt><dd>Atsaukt / atkārtot</dd></div><div><dt>Ctrl+D</dt><dd>Izveidot kopiju</dd></div>
+      <div><dt>Cipari + Enter</dt><dd>Sienas garums</dd></div><div><dt>Shift</dt><dd>Bez leņķu piesaistes</dd></div><div><dt>Alt</dt><dd>Bez magnēta</dd></div>
+      <div><dt>Atstarpe + vilkt</dt><dd>Bīdīt plānu</dd></div><div><dt>Ritenītis</dt><dd>Tuvināt</dd></div><div><dt>0</dt><dd>Centrēt projektu</dd></div>
     </dl>
   </div>
 </dialog>
@@ -211,8 +233,9 @@
   <div class="row"><button type="button" class="btn danger" id="confirmYes">Jā</button><button type="button" class="btn" id="confirmNo">Atcelt</button></div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
-<input type="file" id="fileImport" accept=".json,application/json" hidden>
+<input type="file" id="fileImport" accept=".plan,.json,application/json" hidden>
 <input type="file" id="fileBg" accept="image/*" hidden>
+<input type="file" id="fileImage" accept="image/*" hidden>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

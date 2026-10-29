@@ -72,7 +72,12 @@ function roomArea(pts) {
 export function validateProject(p) {
   if (!p || typeof p !== 'object' || !Array.isArray(p.floors) || !p.floors.length) throw new Error('Failā nav Būvplāna projekta.');
   for (const f of p.floors) {
-    for (const k of ['walls', 'openings', 'rooms', 'items', 'dims', 'labels', 'wires']) if (!Array.isArray(f[k])) f[k] = [];
+    for (const k of ['walls', 'openings', 'rooms', 'items', 'dims', 'labels', 'lines', 'zones']) if (!Array.isArray(f[k])) f[k] = [];
+    // Vecie elektrības vadi kļūst par kabeļu līnijām elektroinstalācijas lapā.
+    if (Array.isArray(f.wires)) {
+      for (const w of f.wires) f.lines.push({ id: w.id, type: w.color === '#2e9b3f' ? 'lowcable' : 'cable', points: w.points, layer: 'cables', color: w.color });
+      delete f.wires;
+    }
     if (typeof f.height !== 'number') f.height = 270;
     if (typeof f.elevation !== 'number') f.elevation = 0;
     if (!f.id) f.id = Math.random().toString(36).slice(2, 10);
