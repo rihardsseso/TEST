@@ -1,5 +1,7 @@
 # Balss vadība
 
+> Repozitorijā ir arī **[Būvplāns](buvplans/)** — tiešsaistes ēku un telpu plānotājs pārlūkā (2D plāns, 3D, sienu skati, aprēķini, PDF albums).
+
 Android lietotne, ar kuru telefonu var pārvaldīt ar balsi latviešu (vai angļu) valodā:
 zvanīt, sūtīt ziņas, atvērt lietotnes, ieslēgt lukturīti, mainīt skaļumu, uzlikt modinātāju,
 meklēt internetā, navigēt, vadīt mūziku un arī pašu ekrānu — “atpakaļ”, “sākums”, “ritini uz leju”,
