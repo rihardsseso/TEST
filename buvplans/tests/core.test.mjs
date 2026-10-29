@@ -4,7 +4,7 @@ import { polygonArea, insetPolygon, pointInPolygon, interiorPoint, segmentInters
 import { newFloor, newProject, makeWall, makeOpening, moveJoint, clampOpening, segmentCovered, Store, snapshotWalls, followHosts } from '../js/model.js';
 import { wallFaceDims } from '../js/dims.js';
 import { findFaces, detectRooms, syncRooms, keepRoomsInSync } from '../js/rooms.js';
-import { roomStats, floorStats, specification, statsCSV } from '../js/calc.js';
+import { roomStats, floorStats, specification, statsCSV, wallMaterials } from '../js/calc.js';
 import { roomElevations, elevationSVG } from '../js/elevations.js';
 import { sampleProject } from '../js/sample.js';
 
@@ -187,4 +187,18 @@ test('mainot ārsienas garumu, iekšsienas seko līdzi un saglabā attālumu lī
   followHosts(f, before);
   assert.deepEqual(near.a, { x: 150, y: -100 });
   assert.equal(Math.round(far.a.y), -100);
+});
+
+test('sienu materiāli: laukums bez ailēm, apjoms un bloku skaits', () => {
+  const f = newFloor();
+  box(f, 0, 0, 400, 300, 30);
+  for (const w of f.walls) w.material = 'gas';
+  f.openings.push(makeOpening('window', f.walls[0].id, 200, { width: 100, height: 150, sill: 90 }));
+  const [row] = wallMaterials(f);
+  assert.equal(row.name, 'Gāzbetona bloki');
+  assert.equal(row.length.toFixed(2), '14.00');
+  const area = 14 * 2.7 - 1 * 1.5;
+  assert.equal(row.area.toFixed(3), area.toFixed(3));
+  assert.equal(row.volume.toFixed(3), (area * 0.3).toFixed(3));
+  assert.equal(row.units, Math.ceil(area * (1e4 / (60 * 20)))); // 60×20 cm bloki
 });

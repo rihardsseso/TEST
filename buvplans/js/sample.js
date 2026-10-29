@@ -22,9 +22,11 @@ export function sampleProject() {
   const midBot = W(500, 420, 500, 700, 12);
   const hor = W(0, 420, 900, 420, 12);
   const bathW = W(300, 420, 300, 700, 12);
+  for (const w of [top, right, bottom, left]) w.material = 'ceramic';
+  for (const w of [midTop, midBot, hor]) w.material = 'brick';
   // Remonta ieceres: vecā virtuves starpsiena tiek nojaukta, vannas istabas siena ir jauna.
-  W(700, 420, 700, 560, 12).status = 'demolish';
-  Object.assign(bathW, { status: 'new', kind: 'partition', thickness: 10 });
+  Object.assign(W(700, 420, 700, 560, 12), { status: 'demolish', material: 'brick' });
+  Object.assign(bathW, { status: 'new', kind: 'partition', thickness: 10, material: 'drywall' });
 
   const O = (type, wall, pos, opts) => f.openings.push(makeOpening(type, wall.id, pos, opts));
   O('window', top, 250, { width: 180 });

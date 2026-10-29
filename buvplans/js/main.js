@@ -3,7 +3,8 @@ import { Store, newProject, newFloor, uid, wallLength, wallDir, clampOpening, mo
 import { Editor2D, TOOLS } from './editor2d.js';
 import { CATALOG, CATEGORIES, FLOOR_FINISHES, WALL_FINISHES, drawItem2D, byKind } from './catalog.js';
 import { keepRoomsInSync } from './rooms.js';
-import { roomStats, floorStats, specification, openingSchedule, statsCSV, fmt } from './calc.js';
+import { roomStats, floorStats, specification, openingSchedule, statsCSV, fmt, wallMaterials } from './calc.js';
+import { WALL_MATERIALS, wallMaterial, drawMaterialSwatch, paintMaterial } from './walls.js';
 import { roomElevations, elevationSVG } from './elevations.js';
 import { buildAlbum, SHEET_TYPES } from './album.js';
 import { THEME, floorBounds, wallKind } from './draw2d.js';
@@ -46,7 +47,10 @@ function toast(msg) {
 // ---------- 2D redaktors ----------
 const editor = new Editor2D($('#plan'), store, {
   onStatus: (t) => { $('#statusHint').textContent = t; },
-  onTool: () => syncToolButtons(),
+  onTool: (tool) => {
+    syncToolButtons();
+    if (tool === 'wall' || tool === 'rect') editor.status(`${wallTypeLabel()}. ${TOOLS[tool].hint}`);
+  },
   onEdit: () => setTimeout(() => $('#props input, #props select')?.focus(), 30),
   onView: (v) => syncZoom(v),
 });
@@ -188,7 +192,13 @@ function renderLeftbar() {
     const b = cv.parentElement;
     drawThumb(cv, byKind(b.dataset.kind || b.dataset.thumb), true);
   });
-  $$('[data-tool]', bar).forEach((b) => b.addEventListener('click', () => {
+  $$('[data-tool]', bar).forEach((b) => b.addEventListener('click', (e) => {
+    if (b.dataset.tool === 'wall') {
+      // Siena: vispirms izvēlas sienas veidu un biezumu.
+      e.stopPropagation();
+      if (!$('#flyout').hidden && $('#flyout').dataset.cat === 'walls') return closeFloating();
+      return openWallChooser(b);
+    }
     closeFloating();
     editor.setTool(b.dataset.tool);
   }));
@@ -218,6 +228,73 @@ function openFlyout(cat, btn) {
       closeFloating();
     });
   });
+  fly.hidden = false;
+  btn.setAttribute('aria-pressed', 'true');
+  const ws = $('.workspace').getBoundingClientRect(), r = btn.getBoundingClientRect();
+  fly.style.top = `${Math.max(4, Math.min(r.top - ws.top, ws.height - fly.offsetHeight - 8))}px`;
+}
+
+// ---------- sienu veids un biezums ----------
+const fmtT = (t) => String(t).replace('.', ',');
+const wallKeys = () => (stage?.newWalls ? ['partitionMaterial', 'partitionThickness'] : ['wallMaterial', 'wallThickness']);
+function wallTypeLabel() {
+  const [mk, tk] = wallKeys();
+  return `${wallMaterial(editor.settings[mk])?.name || 'Siena'}, ${fmtT(editor.settings[tk])} cm`;
+}
+
+function openWallChooser(btn, matId = null) {
+  closeFloating();
+  const fly = $('#flyout');
+  const [mk, tk] = wallKeys();
+  fly.dataset.cat = 'walls';
+  if (!matId) {
+    fly.innerHTML = `<h3>Sienas veids</h3><div class="wall-list">${WALL_MATERIALS.map((m) => `<button type="button" class="wall-type ${editor.settings[mk] === m.id ? 'active' : ''}" data-mat="${m.id}">
+      <canvas width="112" height="44"></canvas><span><b>${esc(m.name)}</b><small>${m.thick.map(fmtT).join(' · ')} cm</small></span></button>`).join('')}</div>`;
+    $$('.wall-type', fly).forEach((b) => {
+      drawMaterialSwatch($('canvas', b), wallMaterial(b.dataset.mat));
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openWallChooser(btn, b.dataset.mat);
+      });
+    });
+  } else {
+    const m = wallMaterial(matId);
+    const cur = editor.settings[mk] === m.id ? editor.settings[tk] : m.def;
+    fly.innerHTML = `<h3 class="fly-head"><button type="button" class="fly-back" aria-label="Atpakaļ uz sienu veidiem">‹</button>${esc(m.name)} — biezums</h3>
+      <div class="thick-grid">${m.thick.map((t) => `<button type="button" class="thick ${t === cur ? 'active' : ''}" data-t="${t}"><canvas width="120" height="64"></canvas><b>${fmtT(t)} cm</b></button>`).join('')}</div>
+      <form class="thick-custom"><label for="thickCustom">Cits biezums</label><input id="thickCustom" type="number" inputmode="decimal" min="2" max="150" step="0.5" value="${cur}"><span>cm</span><button type="submit" class="btn small primary">Zīmēt</button></form>`;
+    const choose = (t) => {
+      editor.settings[mk] = m.id;
+      editor.settings[tk] = t;
+      storage.setPref('settings', editor.settings);
+      closeFloating();
+      editor.setTool('wall');
+    };
+    $$('.thick', fly).forEach((b) => {
+      const t = parseFloat(b.dataset.t), cv = $('canvas', b), g = cv.getContext('2d');
+      // Josla, kuras biezums atbilst sienas biezumam (mērogā pret lielāko piedāvāto).
+      const h = Math.max(6, Math.round((t / Math.max(...m.thick)) * 52));
+      const tile = document.createElement('canvas');
+      tile.width = tile.height = 12;
+      paintMaterial(tile.getContext('2d'), m, 12);
+      g.fillStyle = g.createPattern(tile, 'repeat');
+      g.fillRect(4, (64 - h) / 2, 112, h);
+      g.strokeStyle = '#2b2b2b';
+      g.lineWidth = 2;
+      g.strokeRect(4, (64 - h) / 2, 112, h);
+      b.addEventListener('click', () => choose(t));
+    });
+    $('.fly-back', fly).addEventListener('click', (e) => {
+      e.stopPropagation();
+      openWallChooser(btn);
+    });
+    $('.thick-custom', fly).addEventListener('submit', (e) => {
+      e.preventDefault();
+      const t = parseFloat($('#thickCustom').value);
+      if (t >= 2 && t <= 150) choose(Math.round(t * 10) / 10);
+      else toast('Biezumam jābūt no 2 līdz 150 cm.');
+    });
+  }
   fly.hidden = false;
   btn.setAttribute('aria-pressed', 'true');
   const ws = $('.workspace').getBoundingClientRect(), r = btn.getBoundingClientRect();
@@ -280,8 +357,11 @@ function renderProps() {
   }
   let h = '';
   if (s.kind === 'walls') {
-    h += `<div class="fields">${num('Garums (ass)', 'len', wallLength(obj), { min: 1 })}${num('Biezums', 'thickness', obj.thickness, { min: 2 })}${num('Augstums', 'height', obj.height, { min: 10 })}
-      ${sel('Veids', 'kind', wallKind(obj), [['bearing', 'Nesošā / ārsiena (svītrota)'], ['partition', 'Starpsiena (balta)']])}
+    const mat = wallMaterial(obj.material);
+    h += `<div class="fields">${sel('Materiāls', 'material', obj.material || '', [['', '— nav norādīts —'], ...WALL_MATERIALS.map((x) => [x.id, x.name])])}
+      ${num('Garums (ass)', 'len', wallLength(obj), { min: 1 })}<label class="field"><span>Biezums</span><input type="number" inputmode="decimal" data-k="thickness" value="${obj.thickness}" min="2" step="0.5" list="thickList"><em>cm</em></label>
+      <datalist id="thickList">${(mat?.thick || []).map((t) => `<option value="${t}"></option>`).join('')}</datalist>${num('Augstums', 'height', obj.height, { min: 10 })}
+      ${sel('Nesošā / starpsiena', 'kind', wallKind(obj), [['bearing', 'Nesošā / ārsiena'], ['partition', 'Starpsiena']])}
       ${sel('Statuss', 'status', obj.status || 'existing', [['existing', 'Esoša'], ['demolish', 'Nojaucama'], ['new', 'Jauna']])}</div>
       <div class="row">${btn('Sadalīt uz pusēm', 'split')}${btn('Dzēst', 'delete', 'danger')}</div><p class="hint">Velc apļus sienas galos, lai mainītu stūrus; savienotās sienas un telpas sekos līdzi.</p>`;
   } else if (s.kind === 'openings') {
@@ -313,7 +393,7 @@ function renderProps() {
   el.hidden = false;
   bindFields(el, (k, v) => {
     store.commit(() => applyProp(f, s.kind, obj, k, v));
-    if (s.kind === 'openings' && k === 'type') renderProps();
+    if ((s.kind === 'openings' && k === 'type') || k === 'material') renderProps();
   });
   $$('[data-act]', el).forEach((b) => b.addEventListener('click', () => propAction(b.dataset.act, obj)));
 }
@@ -337,6 +417,11 @@ function applyProp(f, kind, obj, k, v) {
     const before = snapshotWalls(f);
     moveJoint(f, { ...obj.b }, add(obj.a, mul(wallDir(obj), Math.max(1, v))));
     followHosts(f, before);
+    return;
+  }
+  if (kind === 'walls' && k === 'material') {
+    obj.material = v || undefined;
+    if (wallMaterial(v)?.partition) obj.kind = 'partition';
     return;
   }
   if (kind === 'openings') {
@@ -642,6 +727,7 @@ function renderCalc() {
       <div class="table-wrap"><table class="data"><thead><tr><th>Telpa</th><th class="n">Laukums m²</th><th class="n">Perimetrs m</th><th class="n">H m</th><th class="n">Tilpums m³</th><th class="n">Sienas m²</th><th class="n">Griesti m²</th><th class="n">Grīdlīste m</th><th class="n">Palodzes m</th><th class="n">Durvis/logi</th><th class="n">Roz./slēdži/gaism.</th><th>Grīda</th><th>Sienas</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="13" class="empty">Šajā stāvā vēl nav telpu. Uzzīmē sienas vai velc taisnstūri ar rīku „Telpa”.</td></tr>'}</tbody>
       <tfoot><tr><td>Kopā</td><td class="n">${fmt(t.area)}</td><td></td><td></td><td class="n">${fmt(t.volume)}</td><td class="n">${fmt(t.wallNet)}</td><td class="n">${fmt(t.ceiling)}</td><td class="n">${fmt(t.baseboard)}</td><td></td><td class="n">${t.doors}/${t.windows}</td><td class="n">${t.sockets}/${t.switches}/${t.lights}</td><td></td><td></td></tr></tfoot></table></div>
+      ${materialsTable(f)}
       <div class="calc-cols"><div class="table-wrap"><h3>Mēbeles un iekārtas</h3><table class="data"><thead><tr><th>Nosaukums</th><th class="n">Izmēri cm</th><th class="n">Skaits</th></tr></thead><tbody>${spec || '<tr><td colspan="3" class="empty">Nav priekšmetu</td></tr>'}</tbody></table></div>
       <div class="table-wrap"><h3>Ailes</h3><table class="data"><thead><tr><th>Veids</th><th class="n">P×A cm</th><th class="n">Palodze cm</th></tr></thead><tbody>${ops || '<tr><td colspan="3" class="empty">Nav aiļu</td></tr>'}</tbody></table>
       <dl class="stats">${stat('Sienu garums (pēc remonta)', `${fmt(t.wallLength)} m`)}${stat('Mūra apjoms', `${fmt(t.wallVolume)} m³`)}${stat('Nojaucamās sienas', `${fmt(t.demolishLength)} m · ${fmt(t.demolishVolume)} m³`)}${stat('Jaunās starpsienas', `${fmt(t.newLength)} m · ${fmt(t.newArea)} m²`)}${stat('Elektrības vadi plānā', `${fmt(t.wireLength)} m`)}${stat('TV / datortīkla rozetes', t.weak)}${stat('Ūdens un kanalizācijas izvadi', t.water)}</dl></div></div></section>`;
@@ -653,6 +739,13 @@ function renderCalc() {
     if (b.dataset.act === 'csvSave') download(`${store.project.name}.csv`, new Blob(['﻿' + csv], { type: 'text/csv' }));
     else copyText(csv, 'Tabula nokopēta — ielīmē to izklājlapā');
   }));
+}
+
+function materialsTable(f) {
+  const rows = wallMaterials(f).map((r) => `<tr><td>${esc(r.name)}</td><td class="n">${fmtT(r.thickness)}</td><td class="n">${fmt(r.length)}</td><td class="n">${fmt(r.area)}</td><td class="n">${fmt(r.volume, 3)}</td><td class="n">${r.units ? `~${r.units.toLocaleString('lv-LV')}` : '–'}</td></tr>`).join('');
+  if (!rows) return '';
+  return `<div class="table-wrap calc-mat"><h3>Sienu materiāli</h3><table class="data"><thead><tr><th>Materiāls</th><th class="n">Biezums cm</th><th class="n">Garums m</th><th class="n">Laukums bez ailēm m²</th><th class="n">Apjoms m³</th><th class="n">Bloki / ķieģeļi gab.</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="hint">Bloku skaits ir aptuvens — pēc bloka skata izmēra ar šuvi, bez rezerves griezumiem.</p></div>`;
 }
 
 // ---------- sienu skati ----------

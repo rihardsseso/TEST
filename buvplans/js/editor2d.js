@@ -10,6 +10,7 @@ import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen } from '.
 import { rebuildRooms } from './rooms.js';
 import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
 import { itemMode, wallMode } from './stages.js';
+import { wallMaterial } from './walls.js';
 
 export const TOOLS = {
   select: { name: 'Atlasīt', key: 'v', hint: 'Klikšķis atlasa objektu, vilkšana pārvieto. Tukšā vietā vilkšana bīda plānu.' },
@@ -31,7 +32,10 @@ export class Editor2D {
     this.store = store;
     this.hooks = hooks;
     this.view = { scale: 0.6, ox: 60, oy: 60 };
-    this.settings = { grid: true, snap: true, dims: true, hints: true, units: 'cm', wallThickness: 25, partitionThickness: 10 };
+    this.settings = {
+      grid: true, snap: true, dims: true, hints: true, units: 'cm',
+      wallMaterial: 'gas', wallThickness: 25, partitionMaterial: 'drywall', partitionThickness: 10,
+    };
     this.stage = null;
     this.tool = 'select';
     this.state = {};
@@ -123,10 +127,13 @@ export class Editor2D {
     return true;
   }
 
+  /** Jaunas sienas īpašības: materiāls un biezums no sienu izvēlnes, statuss pēc stadijas. */
   get newWallProps() {
-    return this.stage?.newWalls
-      ? { thickness: this.settings.partitionThickness, status: 'new', kind: 'partition' }
-      : { thickness: this.settings.wallThickness, status: 'existing' };
+    const st = this.settings;
+    if (this.stage?.newWalls) return { thickness: st.partitionThickness, material: st.partitionMaterial, status: 'new', kind: 'partition' };
+    const props = { thickness: st.wallThickness, material: st.wallMaterial, status: 'existing' };
+    if (wallMaterial(st.wallMaterial)?.partition) props.kind = 'partition';
+    return props;
   }
 
   setTool(tool, extra = {}) {
@@ -135,8 +142,8 @@ export class Editor2D {
     this.state = { ...extra };
     this.typed = '';
     this.canvas.dataset.tool = tool;
-    this.hooks.onTool?.(tool);
     this.status(TOOLS[tool]?.hint || '');
+    this.hooks.onTool?.(tool);
     this.requestRender();
   }
 

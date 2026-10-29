@@ -5,6 +5,7 @@ import { drawItem2D, isPoint, finish, FLOOR_FINISHES, categoryOf } from './catal
 import { itemMode, wallMode } from './stages.js';
 import { fmt } from './calc.js';
 import { wallFaceDims } from './dims.js';
+import { wallMaterial, paintMaterial } from './walls.js';
 
 export const THEME = {
   bg: '#ffffff', grid: '#eef0f2', gridMajor: '#d9dde1', ink: '#222222', muted: '#555555', line: '#2b2b2b',
@@ -45,6 +46,20 @@ function hatch(ctx, color, bg) {
     g.moveTo(-1, 1); g.lineTo(1, -1);
     g.moveTo(6, 8); g.lineTo(8, 6);
     g.stroke();
+    map.set(k, ctx.createPattern(c, 'repeat'));
+  }
+  return map.get(k);
+}
+
+/** Sienas materiāla šķērssvītrojums (gāzbetons — punkti, ķieģeļi — blīvas svītras u. c.). */
+function materialPattern(ctx, mat) {
+  let map = patterns.get(ctx);
+  if (!map) patterns.set(ctx, (map = new Map()));
+  const k = `wall:${mat.id}`;
+  if (!map.has(k)) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 12;
+    paintMaterial(c.getContext('2d'), mat, 12);
     map.set(k, ctx.createPattern(c, 'repeat'));
   }
   return map.get(k);
@@ -189,7 +204,9 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     const k = fillKind(x);
     seg(x.w);
     ctx.lineWidth = Math.max(0.5, x.w.thickness * scale - 1.4);
-    ctx.strokeStyle = k === 'bearing' ? hatch(ctx, t.hatch, t.bg) : k === 'demolish' ? hatch(ctx, t.demolish, '#fff4f3') : k === 'new' ? t.newFill : t.bg;
+    const mat = wallMaterial(x.w.material);
+    ctx.strokeStyle = k === 'demolish' ? hatch(ctx, t.demolish, '#fff4f3') : mat ? materialPattern(ctx, mat)
+      : k === 'bearing' ? hatch(ctx, t.hatch, t.bg) : k === 'new' ? t.newFill : t.bg;
     ctx.stroke();
   }
   for (const { w } of walls) {

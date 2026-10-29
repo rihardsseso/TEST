@@ -2,6 +2,7 @@
 import { polygonArea, polygonPerimeter, pointInPolygon, add, mul } from './geometry.js';
 import { wallLength, wallPoint, wallNormal } from './model.js';
 import { byKind, finish, FLOOR_FINISHES, WALL_FINISHES } from './catalog.js';
+import { wallMaterial, unitsPerM2 } from './walls.js';
 
 const m2 = (cm2) => cm2 / 1e4;
 const m = (cm) => cm / 100;
@@ -94,6 +95,26 @@ export function floorStats(floor) {
       wireLength: m((floor.wires || []).reduce((s, wr) => s + wr.points.reduce((q, p, i) => (i ? q + Math.hypot(p.x - wr.points[i - 1].x, p.y - wr.points[i - 1].y) : 0), 0), 0)),
     },
   };
+}
+
+/** Sienu apjomi pa materiāliem un biezumiem (pēc remonta, bez nojaucamajām sienām). */
+export function wallMaterials(floor) {
+  const map = new Map();
+  for (const w of floor.walls) {
+    if (w.status === 'demolish') continue;
+    const mat = wallMaterial(w.material);
+    const k = `${w.material || ''}|${w.thickness}`;
+    if (!map.has(k)) map.set(k, { name: mat?.name || 'Materiāls nav norādīts', thickness: w.thickness, length: 0, area: 0, volume: 0, units: null, perM2: unitsPerM2(mat, w.thickness) });
+    const row = map.get(k);
+    const L = wallLength(w);
+    const opA = floor.openings.filter((o) => o.wallId === w.id).reduce((s, o) => s + o.width * Math.max(0, Math.min(o.height, w.height - o.sill)), 0);
+    const area = m2(L * w.height - opA);
+    row.length += m(L);
+    row.area += area;
+    row.volume += area * m(w.thickness);
+  }
+  for (const row of map.values()) if (row.perM2) row.units = Math.ceil(row.area * row.perM2);
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'lv') || b.thickness - a.thickness);
 }
 
 /** Specifikācija: vienādu priekšmetu skaits ar izmēriem. */
