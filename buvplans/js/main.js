@@ -512,7 +512,7 @@ function applyProp(f, kind, obj, k, v) {
     if (k === 'offset') obj.pos = v + obj.width / 2;
     else if (k === 'status') { if (v) obj.status = v; else delete obj.status; }
     else obj[k] = v;
-    if (obj.variant === 'windoor' && ['windowWidth', 'doorWidth'].includes(k)) obj.width = (obj.windowWidth ?? 130) + (obj.doorWidth ?? 80);
+    if (obj.variant === 'windoor' && ['windowWidth', 'doorWidth', 'variant'].includes(k)) obj.width = (obj.windowWidth ?? 130) + (obj.doorWidth ?? 80);
     if (w) clampOpening(obj, w);
     return;
   }

@@ -224,7 +224,7 @@ export const isCamera = (it) => {
 export const isScreen = (it) => {
   const def = byKind(it.kind);
   if (!def || def.electric || def.water || def.sym === 'tv') return false;
-  return def.sym === 'tvWall' || /monitor|televizor|\bTV\b|ekrān/i.test(def.name);
+  return def.sym === 'tvWall' || (/monitor|televizor|\bTV\b|ekrān/i.test(def.name) && !/skatuves/i.test(def.name));
 };
 
 /** Vai izmērs/komentārs redzams šajā lapā („Rādīt visās lapās”). */
@@ -269,11 +269,15 @@ function drawWaterGroup(ctx, it) {
     ctx.fill();
     ctx.stroke();
     ctx.save();
+    // Burti vienmēr stāvus, lai kā priekšmets būtu pagriezts vai spoguļots
+    ctx.translate(x, 0);
+    if (it.mirror) ctx.scale(-1, 1);
+    ctx.rotate((-(it.rot || 0) * Math.PI) / 180);
     ctx.fillStyle = WATER_OUTPUTS[k].color;
     ctx.font = `600 ${r * 1.3}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(WATER_OUTPUTS[k].letter, x, r * 0.08);
+    ctx.fillText(WATER_OUTPUTS[k].letter, 0, r * 0.08);
     ctx.restore();
   });
 }
@@ -437,7 +441,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   items.sort((a, b) => (a.mode === 'faded' ? 0 : 1) - (b.mode === 'faded' ? 0 : 1));
   // Kameru redzes lauki — zem priekšmetiem
   for (const { it, mode } of items) {
-    if (!isCamera(it) || it.showFov === false) continue;
+    if (!isCamera(it) || it.showFov === false || mode === 'faded') continue;
     const sc = cameraSector(it), c = S(sc), a0 = ((sc.dir - sc.angle / 2) * Math.PI) / 180, a1 = ((sc.dir + sc.angle / 2) * Math.PI) / 180;
     ctx.beginPath();
     ctx.moveTo(c.x, c.y);
@@ -472,7 +476,8 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
       ctx.strokeStyle = t.itemStroke;
       ctx.lineJoin = 'round';
       if (it.mirror) ctx.scale(-1, 1);
-      if (byKind(it.kind)?.sym === 'waterGroup') drawWaterGroup(ctx, it);
+      // Lietotāja mainīti izvadi (noņemti vai citā secībā) — savs zīmējums; citādi kataloga simbols.
+      if (byKind(it.kind)?.sym === 'waterGroup' && (it.order || it.off)) drawWaterGroup(ctx, it);
       else drawItem2D(ctx, it);
       if (it.mirror) ctx.scale(-1, 1);
       if (it.status === 'demolish') {

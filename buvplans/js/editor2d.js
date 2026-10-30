@@ -481,11 +481,12 @@ export class Editor2D {
       else if (this.tool === 'line' && this.state.points?.length) this.finishLine();
       else if (this.tool !== 'select') this.setTool('select');
       else {
-        // Atlases režīmā labā poga atver konteksta izvēlni objektam zem kursora (ja plāns netika bīdīts).
+        // Atlases režīmā labā poga atver konteksta izvēlni objektam zem kursora — kad poga atlaista
+        // un plāns netika bīdīts (dažās sistēmās „contextmenu” pienāk jau pogu nospiežot).
         const { sx, sy } = this.eventPoint(e);
-        const r = this.rightDownAt;
-        if (r && Math.hypot(sx - r.sx, sy - r.sy) > 5) return;
-        this.contextAt(this.toWorld(sx, sy), e.clientX, e.clientY);
+        const ctxReq = { p: this.toWorld(sx, sy), clientX: e.clientX, clientY: e.clientY, sx, sy };
+        if (this.rightPressed) this.pendingCtx = ctxReq;
+        else this.openContext(ctxReq);
       }
     });
     c.addEventListener('wheel', (e) => {
@@ -510,7 +511,11 @@ export class Editor2D {
       this.drag = null;
       return;
     }
-    if (e.button === 2) this.rightDownAt = { sx, sy };
+    if (e.button === 2) {
+      this.rightDownAt = { sx, sy };
+      this.rightPressed = true;
+      this.pendingCtx = null;
+    }
     if (e.button === 1 || e.button === 2 || this.spaceDown) {
       this.drag = { mode: 'pan', sx, sy, ox: this.view.ox, oy: this.view.oy };
       return;
@@ -612,6 +617,17 @@ export class Editor2D {
 
   onUp(e) {
     this.pointers.delete(e.pointerId);
+    if (e.button === 2 && this.rightPressed) {
+      this.rightPressed = false;
+      if (this.pendingCtx) {
+        const req = this.pendingCtx;
+        this.pendingCtx = null;
+        const { sx, sy } = this.eventPoint(e);
+        this.drag = null;
+        if (Math.hypot(sx - req.sx, sy - req.sy) <= 5) this.openContext(req);
+        return;
+      }
+    }
     if (this.pointers.size < 2) this.pinch = null;
     if (this.tool === 'rect' && this.state.start && this.cursor) {
       const a = this.state.start, b = this.cursor.p;
@@ -795,6 +811,12 @@ export class Editor2D {
     for (const it of hits) for (const m of groupMembers(f, it)) ids.add(m.id);
     this.store.selectMany([...ids]);
     this.status(ids.size ? `Atlasīti ${ids.size} priekšmeti. Labā poga — grupēt, kopēt, spoguļot, dzēst.` : 'Rāmī nav priekšmetu.');
+  }
+
+  openContext(req) {
+    const r = this.rightDownAt;
+    if (r && Math.hypot(req.sx - r.sx, req.sy - r.sy) > 5) return;
+    this.contextAt(req.p, req.clientX, req.clientY);
   }
 
   /** Sāk atlasītā objekta (vai vairākatlases) pārvietošanu līdz nākamajam klikšķim. */

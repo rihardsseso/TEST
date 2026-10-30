@@ -25,7 +25,15 @@ export function createShield({ store, toast }) {
   };
   const railWidth = (r) => (r.auto !== false ? Math.max(12, Math.ceil(r.modules.reduce((s, m) => s + m.size, 0))) : r.din);
 
+  let rendering = false;
   function render() {
+    // innerHTML nomaiņa var izraisīt fokusētā lauka „change” (blur) — atkārtota zīmēšana tad nav vajadzīga.
+    if (rendering) return;
+    rendering = true;
+    try { renderNow(); } finally { rendering = false; }
+  }
+
+  function renderNow() {
     const d = data();
     const maxDin = Math.max(12, ...d.rails.map(railWidth));
     let h = `<div class="sh-wrap"><div class="sh-box" style="width:${maxDin * DIN + 60}px">`;
