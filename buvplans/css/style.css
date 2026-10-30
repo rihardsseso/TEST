@@ -549,7 +549,9 @@ html:not([data-view="plan"]) :is(.leftbar, .flyout, .config-panel, .item-preview
 
 /* ---------- apakšējā josla ---------- */
 .bottombar {
-  display: flex;
+  /* Rīku josla pārlūka centrā: saites pa kreisi, rīki vidū, labā kolonna līdzsvaram */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   min-height: 44px;
@@ -561,10 +563,10 @@ html:not([data-view="plan"]) :is(.leftbar, .flyout, .config-panel, .item-preview
   padding-bottom: env(safe-area-inset-bottom, 0px);
   min-width: 0;
 }
-.bb-links { display: flex; gap: 28px; flex: none; }
+.bb-links { display: flex; gap: 28px; min-width: 0; overflow: hidden; }
 .bb-links .link { font-size: 14.5px; text-decoration: none; font-weight: 500; }
 .bb-links .link:hover { text-decoration: underline; }
-.bb-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.bb-tools { grid-column: 2; justify-self: center; max-width: 100%; display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
 .bb-sep { width: 1px; align-self: stretch; background: var(--line-2); margin: 6px 6px; flex: none; }
 .units select { border: 0; background: none; font-size: 14px; padding: 4px 2px; color: #555; }
 .bb-btn {
@@ -884,7 +886,8 @@ table.data tbody tr:hover { background: rgba(245, 202, 195, 0.35); }
   .props { top: auto; bottom: 8px; left: 50px; right: 8px; width: auto; max-height: 52%; }
   .nav-ctl .link, .pan { display: none; }
   .bb-links { display: none; }
-  .bb-tools { margin-left: 0; }
+  .bottombar { grid-template-columns: minmax(0, 1fr); }
+  .bb-tools { grid-column: 1; }
   .calc-cols, .elev-grid { grid-template-columns: 1fr; }
   .flyout { left: 40px; width: min(300px, calc(100vw - 54px)); }
   .leftbar:hover .lb-inner { width: 40px; }
