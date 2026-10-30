@@ -14,6 +14,7 @@ export class View3D {
     this.store = store;
     this.options = { allFloors: false, cutWalls: false, shadows: true };
     // Ko rādīt 3D: elementu grupas (ieslēdz/izslēdz panelī)
+    this.labels = {};
     this.layers = { floors: true, walls: true, openings: true, furniture: true, santeh: true, radiators: true, light: true, electric: true, other: true };
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -209,6 +210,12 @@ export class View3D {
       ig.rotation.y = (-(it.rot || 0) * Math.PI) / 180;
       if (it.mirror) ig.scale.x = -1;
       g.add(ig);
+      if (this.labels[layer3D(it, def)]) {
+        // Nosaukums virs priekšmeta
+        const lab = nameSprite(it.name || def.name);
+        lab.position.set(it.x * U, ((it.elev || 0) + (it.h || def.h || 50) + 18) * U, it.y * U);
+        g.add(lab);
+      }
     }
     return g;
   }
@@ -406,4 +413,32 @@ function layer3D(it, def) {
   if (st === 'light' || def.electric === 'light') return 'light';
   if (['sockets', 'light_connections', 'cables', 'shield'].includes(st) || def.electric) return 'electric';
   return 'other';
+}
+
+/** Teksta birka 3D (vienmēr pret kameru, virs pārējā). */
+function nameSprite(text) {
+  const c = document.createElement('canvas'), ctx = c.getContext('2d');
+  const font = '600 36px "Exo 2", Arial, sans-serif';
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + 28;
+  c.width = w;
+  c.height = 56;
+  ctx.font = font;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.strokeStyle = '#4e6a63';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(2, 2, w - 4, 52, 14);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#2b2b2b';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 14, 29);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  const k = 0.0045; // m uz pikseli
+  sp.scale.set(w * k, 56 * k, 1);
+  sp.renderOrder = 10;
+  return sp;
 }

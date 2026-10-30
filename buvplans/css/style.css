@@ -956,3 +956,4 @@ table.data tbody tr:hover { background: rgba(245, 202, 195, 0.35); }
 
 .view3d-layers .dd-menu { padding: 8px 12px; display: grid; gap: 6px; min-width: 190px; left: 0; right: auto; }
 .view3d-layers .check { grid-column: auto; white-space: nowrap; }
+.l3d-h { margin: 6px 0 0; font: 700 11px var(--font-ui); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-top: 1px solid var(--line-2); padding-top: 6px; }
