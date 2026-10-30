@@ -88,3 +88,26 @@ export function validateProject(p) {
   if (!p.name) p.name = 'Importēts projekts';
   return p;
 }
+
+// ---------- lietotāja bibliotēka („Mana bibliotēka”) ----------
+// Ieraksts: { id, name, stage, items: [{ kind, w, d, h, ..., dx, dy }] } — glabājas iestatījumos, nevis projektā.
+export function getLibrary() {
+  const lib = getPref('library', []);
+  return Array.isArray(lib) ? lib : [];
+}
+
+export function addToLibrary(entry) {
+  const lib = getLibrary();
+  lib.push(entry);
+  setPref('library', lib);
+  return lib;
+}
+
+export function removeFromLibrary(id) {
+  const lib = getLibrary().filter((e) => e.id !== id);
+  setPref('library', lib);
+  return lib;
+}
+
+/** Bibliotēkas ieraksti konkrētai lapai. */
+export const libraryFor = (stageId) => getLibrary().filter((e) => e.stage === stageId);

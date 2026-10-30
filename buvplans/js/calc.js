@@ -1,6 +1,6 @@
 // Apjomu un izmēru aprēķini: laukumi, perimetri, sienu apjomi, grīdlīstes, specifikācija.
 import { polygonArea, polygonPerimeter, pointInPolygon, add, mul } from './geometry.js';
-import { wallLength, wallPoint, wallNormal } from './model.js';
+import { wallLength, wallPoint, wallNormal, pointQty, waterOutputs, roomTiling, tileCount, LAYINGS } from './model.js';
 import { byKind, finish, FLOOR_FINISHES, WALL_FINISHES } from './catalog.js';
 import { wallMaterial, unitsPerM2 } from './walls.js';
 import { LINE_TYPES, ZONE_TYPES, FINISHES } from './catalog-data.js';
@@ -20,6 +20,32 @@ export function roomOpenings(floor, room) {
     if (pointInPolygon(add(c, mul(n, off)), room.points) || pointInPolygon(add(c, mul(n, -off)), room.points)) res.push(o);
   }
   return res;
+}
+
+/** Elektrības punktu skaits (bloki un vertikālās grupas skaitās pa vienam punktam). */
+export const countPoints = (items, kind) => items.reduce((s, it) => s + (byKind(it.kind)?.electric === kind ? pointQty(it) : 0), 0);
+
+/** Ūdens un kanalizācijas izvadu skaits (grupā — katrs redzamais izvads). */
+export const waterPoints = (items) => items.reduce((s, it) => {
+  const def = byKind(it.kind);
+  return s + (def?.sym === 'waterGroup' ? waterOutputs(it).length : def?.water ? 1 : 0);
+}, 0);
+
+/** Grīdas seguma elementu (flīžu, dēļu) skaits telpā ar 10 % rezervi vai null. */
+const LEGACY_FLOOR_PATTERN = { parquet: 'parquet', laminate: 'planks', tile: 'tiles', darktile: 'tiles', carpet: 'carpet', concrete: 'stone' };
+/** Grīdas apdares definīcija (arī vecā parauga segumiem). */
+const floorDef = (id) => {
+  if (!id) return null;
+  if (FINISHES.floor[id]) return FINISHES.floor[id];
+  const f = FLOOR_FINISHES.find((x) => x.id === id);
+  return f ? { name: f.name, color: f.color, pattern: LEGACY_FLOOR_PATTERN[id] || 'plain' } : null;
+};
+
+export function roomTiles(room) {
+  const fd = floorDef(room.floorFinish);
+  const tl = roomTiling(room, fd);
+  if (!tl) return null;
+  return { ...tl, count: tileCount(polygonArea(room.points), tl.L, tl.W, tl.grout, 0.1), layingName: (LAYINGS.find((x) => x[0] === tl.laying) || [])[1] };
 }
 
 export function roomStats(floor, room) {
@@ -45,9 +71,10 @@ export function roomStats(floor, room) {
     windowSills: m(sills),
     doors: ops.filter((o) => o.type === 'door').length,
     windows: ops.filter((o) => o.type === 'window').length,
-    sockets: items.filter((it) => byKind(it.kind)?.electric === 'socket').length,
-    switches: items.filter((it) => byKind(it.kind)?.electric === 'switch').length,
-    lights: items.filter((it) => byKind(it.kind)?.electric === 'light').length,
+    sockets: countPoints(items, 'socket'),
+    switches: countPoints(items, 'switch'),
+    lights: countPoints(items, 'light'),
+    tiles: roomTiles(room),
     floorFinish: room.floorFinish ? FINISHES.floor[room.floorFinish]?.name || finish(FLOOR_FINISHES, room.floorFinish).name : '–',
     wallFinish: finish(WALL_FINISHES, room.wallFinish).name,
   };
@@ -87,11 +114,11 @@ export function floorStats(floor) {
       doors: floor.openings.filter((o) => o.type === 'door').length,
       windows: floor.openings.filter((o) => o.type === 'window').length,
       windowArea: m2(floor.openings.filter((o) => o.type === 'window').reduce((s, o) => s + o.width * o.height, 0)),
-      sockets: floor.items.filter((it) => byKind(it.kind)?.electric === 'socket').length,
-      switches: floor.items.filter((it) => byKind(it.kind)?.electric === 'switch').length,
-      lights: floor.items.filter((it) => byKind(it.kind)?.electric === 'light').length,
-      weak: floor.items.filter((it) => byKind(it.kind)?.electric === 'weak').length,
-      water: floor.items.filter((it) => byKind(it.kind)?.water).length,
+      sockets: countPoints(floor.items, 'socket'),
+      switches: countPoints(floor.items, 'switch'),
+      lights: countPoints(floor.items, 'light'),
+      weak: countPoints(floor.items, 'weak'),
+      water: waterPoints(floor.items),
       demolishLength: m(demLen),
       demolishVolume: demVol / 1e6,
       newLength: m(newLen),
@@ -162,7 +189,15 @@ export function finishSchedule(floor) {
   };
   for (const r of floor.rooms) {
     const a = m2(polygonArea(r.points));
-    if (r.floorFinish) addRow('floor', r.floorFinish, 'm²', a);
+    if (r.floorFinish) {
+      addRow('floor', r.floorFinish, 'm²', a);
+      const t = roomTiles(r);
+      if (t) {
+        const k = `floorPieces|${r.floorFinish}|${t.L}|${t.W}`;
+        if (!rows.has(k)) rows.set(k, { group: 'floorPieces', name: `${floorDef(r.floorFinish)?.name || r.floorFinish} ${t.L}×${t.W} cm (ar 10 % rezervi)`, unit: 'gab.', qty: 0 });
+        rows.get(k).qty += t.count;
+      }
+    }
     if (r.ceiling) addRow('ceiling', r.ceiling, 'm²', a);
     if (r.screed) addRow('screed', r.screed, 'm³', a * (r.screedLevel || 5) / 100);
     if (r.waterFloor) addRow('waterFloor', r.waterFloor, 'm²', a);
@@ -180,7 +215,7 @@ export function finishSchedule(floor) {
       for (const g of ['wall', 'waterWall', 'insulation', 'plasterWall']) if (f[g]) addRow(g, f[g], 'm²', area);
     }
   }
-  const GROUP_NAMES = { floor: 'Grīdas segums', ceiling: 'Griesti', screed: 'Grīdas klons', waterFloor: 'Grīdas hidroizolācija', plasterCeiling: 'Griestu apmetums', baseboard: 'Grīdlīstes', wall: 'Sienu apdare', waterWall: 'Sienu hidroizolācija', insulation: 'Izolācija', plasterWall: 'Sienu apmetums' };
+  const GROUP_NAMES = { floorPieces: 'Grīdas seguma elementi', floor: 'Grīdas segums', ceiling: 'Griesti', screed: 'Grīdas klons', waterFloor: 'Grīdas hidroizolācija', plasterCeiling: 'Griestu apmetums', baseboard: 'Grīdlīstes', wall: 'Sienu apdare', waterWall: 'Sienu hidroizolācija', insulation: 'Izolācija', plasterWall: 'Sienu apmetums' };
   return [...rows.values()].map((r) => ({ ...r, groupName: GROUP_NAMES[r.group] || r.group }));
 }
 

@@ -1,6 +1,6 @@
 // Stāva zīmēšana uz canvas rasējuma stilā: tiek lietota gan redaktorā, gan albuma lapās.
 import { polygonArea, polygonCentroid, interiorPoint, sub, norm, add, mul, cross, rotate, bounds, dist } from './geometry.js';
-import { wallDir, wallNormal, wallPoint, wallLength, wallKind } from './model.js';
+import { wallDir, wallNormal, wallPoint, wallLength, wallKind, roomTiling, tilePieces, windowCasements, cameraSector, cornerDistances, waterOutputs, WATER_OUTPUTS, LAYINGS } from './model.js';
 import { drawItem2D, isPoint, finish, FLOOR_FINISHES, categoryOf, byKind, needsLabel } from './catalog.js';
 import { layerMode, wallMode } from './stages.js';
 import { fmt } from './calc.js';
@@ -215,6 +215,69 @@ export function fitView(floor, width, height, pad = 40) {
 
 const WALL_COLORS = { grey: '#a3a3a3', black: '#2b2b2b' };
 
+/** Novērošanas kamera (redzes lauks plānā). */
+export const isCamera = (it) => {
+  const def = byKind(it.kind);
+  return def?.sym === 'camera' || (def?.stage === 'security' && /kamer/i.test(it.name || def?.name || ''));
+};
+/** Ekrāns (TV, monitors), kura platumu nosaka diagonāle. */
+export const isScreen = (it) => {
+  const def = byKind(it.kind);
+  if (!def || def.electric || def.water || def.sym === 'tv') return false;
+  return def.sym === 'tvWall' || /monitor|televizor|\bTV\b|ekrān/i.test(def.name);
+};
+
+/** Vai izmērs/komentārs redzams šajā lapā („Rādīt visās lapās”). */
+export const onSheet = (o, stage) => o.allSheets !== false || !stage || (o.layer || 'init') === stage.id;
+
+/** Grīdas seguma elementi (flīzes, dēļi) telpā ar šuvēm, pagriezienu un ieklāšanas veidu. */
+function drawTiles(ctx, r, fd, S, scale) {
+  const tl = roomTiling(r, fd);
+  if (!tl || Math.min(tl.L, tl.W) * scale < 2.5) return false;
+  const pieces = tilePieces(r.points, tl);
+  if (!pieces) return false;
+  ctx.save();
+  pathPoly(ctx, r.points.map(S));
+  ctx.clip();
+  ctx.fillStyle = tl.grout > 0 ? '#a7abb0' : '#ffffff';
+  ctx.fill();
+  ctx.beginPath();
+  for (const pc of pieces) {
+    const q = pc.map(S);
+    q.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
+  }
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = fd.color;
+  ctx.fill();
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#4a3f33';
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  ctx.restore();
+  return true;
+}
+
+/** Ūdens izvadu grupa ar lietotāja izvēlētiem izvadiem un secību. */
+function drawWaterGroup(ctx, it) {
+  const outs = waterOutputs(it), n = outs.length, w = it.w, d = it.d;
+  const r = Math.min(w / Math.max(n, 1), d) / 2;
+  outs.forEach((k, i) => {
+    const x = n === 1 ? 0 : -w / 2 + r + (i * (w - 2 * r)) / (n - 1);
+    ctx.beginPath();
+    ctx.arc(x, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.save();
+    ctx.fillStyle = WATER_OUTPUTS[k].color;
+    ctx.font = `600 ${r * 1.3}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(WATER_OUTPUTS[k].letter, x, r * 0.08);
+    ctx.restore();
+  });
+}
+
 /**
  * Zīmē stāvu. `view` = { scale (px uz cm), ox, oy }, `opts` = { stage, grid, dims, units, show, selection, hover, faceHover, width, height }.
  */
@@ -259,6 +322,12 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     if (fd) {
       ctx.fillStyle = surfacePattern(ctx, fd.color, fd.pattern);
       ctx.fill();
+      if (fill === 'floor' && drawTiles(ctx, r, fd, S, scale)) pathPoly(ctx, r.points.map(S));
+    } else if (r.color && stage?.id === 'rooms') {
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = r.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
     if (isSel('rooms', r.id) || isHov('rooms', r.id)) {
       ctx.fillStyle = isSel('rooms', r.id) ? 'rgba(240,140,0,0.22)' : 'rgba(240,140,0,0.1)';
@@ -366,6 +435,25 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   const items = floor.items.map((it) => ({ it, mode: layerMode(stage, categoryOf(it)) }))
     .filter((x) => x.mode !== 'hidden' && !hiddenByShow(categoryOf(x.it)) && !(x.it.status === 'demolish' && stage && !early));
   items.sort((a, b) => (a.mode === 'faded' ? 0 : 1) - (b.mode === 'faded' ? 0 : 1));
+  // Kameru redzes lauki — zem priekšmetiem
+  for (const { it, mode } of items) {
+    if (!isCamera(it) || it.showFov === false) continue;
+    const sc = cameraSector(it), c = S(sc), a0 = ((sc.dir - sc.angle / 2) * Math.PI) / 180, a1 = ((sc.dir + sc.angle / 2) * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.arc(c.x, c.y, sc.radius * scale, a0, a1);
+    ctx.closePath();
+    ctx.globalAlpha = mode === 'faded' ? 0.3 : 1;
+    ctx.fillStyle = 'rgba(47,111,214,0.13)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(47,111,214,0.75)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+  const multi = opts.multi || new Set();
   for (const { it, mode } of items) {
     const p = S(it);
     const k = itemDrawScale(it, scale);
@@ -384,7 +472,8 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
       ctx.strokeStyle = t.itemStroke;
       ctx.lineJoin = 'round';
       if (it.mirror) ctx.scale(-1, 1);
-      drawItem2D(ctx, it);
+      if (byKind(it.kind)?.sym === 'waterGroup') drawWaterGroup(ctx, it);
+      else drawItem2D(ctx, it);
       if (it.mirror) ctx.scale(-1, 1);
       if (it.status === 'demolish') {
         ctx.strokeStyle = t.demolish;
@@ -408,13 +497,42 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
       fitText(ctx, name, p.x, p.y, Math.max(sw, sd) - 6);
       ctx.globalAlpha = 1;
     }
-    if (mode === 'active' && (show.itemDims || show.heights)) {
+    let below = Math.max(sw, sd) / 2 + 8;
+    if ((mode === 'active' && (show.itemDims || show.heights)) || it.showDims) {
       ctx.font = `9px ${t.font}`;
       ctx.fillStyle = t.dim;
-      const txt = [show.itemDims && !isPoint(it) ? `${fmtLen(it.w, opts.units)}×${fmtLen(it.d, opts.units)}` : '', show.heights && it.elev ? `h=${fmtLen(it.elev, opts.units)}` : ''].filter(Boolean).join(' ');
-      if (txt) ctx.fillText(txt, p.x, p.y + Math.max(sw, sd) / 2 + 8);
+      const dimsOn = (show.itemDims && mode === 'active') || it.showDims;
+      const txt = [dimsOn && !isPoint(it) ? `${fmtLen(it.w, opts.units)}×${fmtLen(it.d, opts.units)}${it.showDims ? `×${fmtLen(it.h, opts.units)}` : ''}` : '', (show.heights || it.showDims) && it.elev ? `h=${fmtLen(it.elev, opts.units)}` : ''].filter(Boolean).join(' ');
+      if (txt) {
+        ctx.fillText(txt, p.x, p.y + below);
+        below += 11;
+      }
     }
-    if (isSel('items', it.id) || isHov('items', it.id)) {
+    if ((it.vcount || 1) > 1 || (it.count || 1) > 1) {
+      ctx.font = `600 9px ${t.font}`;
+      ctx.fillStyle = t.accent;
+      ctx.fillText([it.count > 1 ? `${it.count}×` : '', it.vcount > 1 ? `↕${it.vcount}` : ''].join(' ').trim(), p.x + sw / 2 + 10, p.y - sd / 2);
+    }
+    if (it.comment && show.comments && mode !== 'faded') {
+      ctx.font = `italic 10px ${t.font}`;
+      const m = ctx.measureText(it.comment);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(p.x - m.width / 2 - 3, p.y + below - 7, m.width + 6, 14);
+      ctx.fillStyle = '#2f6fd6';
+      ctx.fillText(it.comment, p.x, p.y + below);
+    }
+    if (it.showDist && mode !== 'faded') {
+      const cd = cornerDistances(floor, it);
+      if (cd) {
+        for (const end of [cd.a, cd.b]) {
+          if (dist(cd.q, end) < 1) continue;
+          const dir = norm(sub(end, cd.q)), n = { x: -dir.y, y: dir.x };
+          const side = Math.sign((it.x - cd.q.x) * n.x + (it.y - cd.q.y) * n.y) || 1;
+          drawDim(ctx, { a: cd.q, b: end, offset: (side * 16) / scale, color: '#2f6fd6' }, view, t, opts.units, false);
+        }
+      }
+    }
+    if (isSel('items', it.id) || isHov('items', it.id) || multi.has(it.id)) {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(((it.rot || 0) * Math.PI) / 180);
@@ -425,7 +543,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     }
   }
 
-  if (show.userDims) for (const d of floor.dims) drawDim(ctx, d, view, t, opts.units, isSel('dims', d.id) || isHov('dims', d.id));
+  if (show.userDims) for (const d of floor.dims) if (onSheet(d, stage)) drawDim(ctx, d, view, t, opts.units, isSel('dims', d.id) || isHov('dims', d.id));
 
   // Telpu nosaukumi, numuri un sarkanā augstuma/laukuma birka
   ctx.textAlign = 'center';
@@ -475,11 +593,24 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
       ctx.font = `10px ${t.font}`;
       ctx.fillStyle = t.ink;
       ctx.fillText(fd.name + (stage.roomFill === 'screed' && r.screedLevel ? ` · ${fmtLen(r.screedLevel, opts.units)} ${unitName(opts.units)}` : ''), c.x, c.y + 32);
+      if (stage.roomFill === 'floor') {
+        const tl = roomTiling(r, fd);
+        const extra = [r.tileDims !== false && tl ? `${fmtLen(tl.L, opts.units)}×${fmtLen(tl.W, opts.units)} · ${(LAYINGS.find((x) => x[0] === tl.laying) || [])[1] || ''}${tl.angle ? ` · ${Math.round(tl.angle)}°` : ''}` : '', r.floorRaise ? `pacēlums +${fmtLen(r.floorRaise, opts.units)} ${unitName(opts.units)}` : ''].filter(Boolean).join(' · ');
+        if (extra) {
+          ctx.font = `9px ${t.font}`;
+          const m = ctx.measureText(extra);
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(c.x - m.width / 2 - 3, c.y + 39, m.width + 6, 12);
+          ctx.fillStyle = t.muted;
+          ctx.fillText(extra, c.x, c.y + 45);
+        }
+      }
     }
   });
 
   if (show.comments) {
     for (const l of floor.labels) {
+      if (!onSheet(l, stage)) continue;
       const p = S(l);
       ctx.font = `${l.size || 14}px ${t.font}`;
       ctx.textAlign = 'center';
@@ -720,11 +851,27 @@ export function drawOpening(ctx, o, w, view, t, highlight, ghost = false, demoli
     ctx.stroke();
   };
   const sill = (x0, x1) => {
+    // Palodze: izvirzījums no sienas virsmas un pārkare aiz ailes malām
+    const dep = o.sillDepth ?? 5, ov = o.sillOver ?? 3;
     ctx.beginPath();
-    line(P(x0 - 3, ss * (th + 5)), P(x1 + 3, ss * (th + 5)));
-    line(P(x0 - 3, ss * th), P(x0 - 3, ss * (th + 5)));
-    line(P(x1 + 3, ss * th), P(x1 + 3, ss * (th + 5)));
+    line(P(x0 - ov, ss * (th + dep)), P(x1 + ov, ss * (th + dep)));
+    line(P(x0 - ov, ss * th), P(x0 - ov, ss * (th + dep)));
+    line(P(x1 + ov, ss * th), P(x1 + ov, ss * (th + dep)));
     ctx.lineWidth = 0.7;
+    ctx.stroke();
+  };
+  // Vērtnes, atvērtas par pacelšanas leņķi (rise angle) uz palodzes pusi
+  const sashes = (x0, x1, n) => {
+    const ang = o.riseAngle || 0;
+    if (!ang) return;
+    const sw = (x1 - x0) / n, a = (Math.min(ang, 180) * Math.PI) / 180;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const left = n === 1 ? !o.hinge : i < n / 2;
+      const hx = left ? x0 + i * sw : x0 + (i + 1) * sw, dirx = left ? 1 : -1;
+      line(P(hx, ss * th * 0.18), P(hx + dirx * sw * Math.cos(a), ss * (th * 0.18 + sw * Math.sin(a))));
+    }
+    ctx.lineWidth = highlight ? 1.6 : 1;
     ctx.stroke();
   };
   const leaf = (hingeAlong, width, dirAlong) => {
@@ -768,15 +915,23 @@ export function drawOpening(ctx, o, w, view, t, highlight, ghost = false, demoli
 
   switch (variant) {
     case 'opening': break;
-    case 'window': windowPart(-half, half); sill(-half, half); break;
+    case 'window': {
+      const n = windowCasements(o);
+      windowPart(-half, half, n - 1);
+      sill(-half, half);
+      sashes(-half, half, n);
+      break;
+    }
     case 'french': windowPart(-half, half, Math.max(1, Math.round(o.width / 80) - 1)); break;
     case 'frenchSliding': windowPart(-half, half); slidingLeaves(2); break;
     case 'french4': windowPart(-half, half, 3); break;
     case 'windoor': {
       const dw = o.doorWidth || 80, door0 = o.hinge ? half - dw : -half;
       const win0 = o.hinge ? -half : -half + dw;
-      windowPart(win0, win0 + (o.width - dw));
+      const nw = windowCasements(o, o.width - dw);
+      windowPart(win0, win0 + (o.width - dw), nw - 1);
       sill(win0, win0 + (o.width - dw));
+      sashes(win0, win0 + (o.width - dw), nw);
       ctx.beginPath();
       line(P(door0 + (o.hinge ? 0 : dw), th), P(door0 + (o.hinge ? 0 : dw), -th));
       ctx.stroke();
@@ -819,6 +974,29 @@ export function drawOpening(ctx, o, w, view, t, highlight, ghost = false, demoli
     }
     case 'glass': leaf(hs * half, o.width, -hs); break;
     default: leaf(hs * half, o.width, -hs);
+  }
+  if (o.type === 'door' && o.trims) {
+    // Kārba ar apmalēm: apmales abās sienas pusēs
+    const tw = 7, tt = 1.5;
+    ctx.beginPath();
+    for (const side of [1, -1]) {
+      for (const [a0, a1] of [[-half - tw, -half], [half, half + tw]]) {
+        line(P(a0, side * th), P(a0, side * (th + tt)));
+        line(P(a0, side * (th + tt)), P(a1, side * (th + tt)));
+      }
+    }
+    ctx.lineWidth = highlight ? 1.6 : 1;
+    ctx.stroke();
+  }
+  if (o.type === 'door' && o.arched) {
+    // Arkveida aile: virs griezuma plaknes — pārtraukta līnija
+    ctx.beginPath();
+    ctx.setLineDash([5, 3]);
+    line(P(-half, th * 0.5), P(half, th * 0.5));
+    line(P(-half, -th * 0.5), P(half, -th * 0.5));
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
   if (demolished) {
     ctx.beginPath();

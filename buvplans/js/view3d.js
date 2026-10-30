@@ -140,10 +140,12 @@ export class View3D {
       const geo = new THREE.ShapeGeometry(shape);
       geo.rotateX(-Math.PI / 2);
       const m = new THREE.Mesh(geo, mat(finishDef('floor', r.floorFinish)?.color || '#e4dccd', { roughness: 0.7 }));
-      m.position.y = 0.002;
+      m.position.y = 0.002 + (r.floorRaise || 0) * U;
       m.receiveShadow = true;
       g.add(m);
     }
+    // Izmēri ar „Rādīt visos režīmos” — līnija un uzraksts virs grīdas
+    for (const dm of f.dims || []) if (dm.allModes) g.add(dimension3D(dm));
     // Sienas ar ailēm
     const wallH = (w) => (this.options.cutWalls ? Math.min(w.height, 110) : w.height);
     for (const w of f.walls) {
@@ -198,6 +200,7 @@ export class View3D {
       }
       ig.position.set(it.x * U, (it.elev || 0) * U, it.y * U);
       ig.rotation.y = (-(it.rot || 0) * Math.PI) / 180;
+      if (it.mirror) ig.scale.x = -1;
       g.add(ig);
     }
     return g;
@@ -291,3 +294,35 @@ function disposeGroup(group) {
   });
 }
 
+
+/** Izmēra līnija 3D skatā ar garuma uzrakstu (sprite). */
+function dimension3D(dm) {
+  const grp = new THREE.Group();
+  const y = 0.03;
+  const n = (() => {
+    const dx = dm.b.x - dm.a.x, dy = dm.b.y - dm.a.y, L = Math.hypot(dx, dy) || 1;
+    return { x: -dy / L, y: dx / L };
+  })();
+  const off = dm.offset || 0;
+  const A = { x: dm.a.x + n.x * off, y: dm.a.y + n.y * off }, B = { x: dm.b.x + n.x * off, y: dm.b.y + n.y * off };
+  const color = new THREE.Color(dm.color || '#d9480f');
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(A.x * U, y, A.y * U), new THREE.Vector3(B.x * U, y, B.y * U)]);
+  grp.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color })));
+  const L = Math.hypot(dm.b.x - dm.a.x, dm.b.y - dm.a.y);
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillRect(0, 8, 256, 48);
+  ctx.fillStyle = `#${color.getHexString()}`;
+  ctx.font = 'bold 34px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${Math.round(L)} cm`, 128, 33);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  sp.scale.set(0.8, 0.2, 1);
+  sp.position.set(((A.x + B.x) / 2) * U, 0.25, ((A.y + B.y) / 2) * U);
+  grp.add(sp);
+  return grp;
+}

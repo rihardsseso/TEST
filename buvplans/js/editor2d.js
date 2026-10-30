@@ -5,8 +5,9 @@ import {
 import {
   makeWall, makeOpening, wallLength, wallDir, wallNormal, wallPoint, clampOpening,
   nearestWall, moveJoint, segmentCovered, uid, snapshotWalls, followHosts,
+  groupMembers, rotateItems, itemsFromLibrary,
 } from './model.js';
-import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen } from './draw2d.js';
+import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen, onSheet } from './draw2d.js';
 import { rebuildRooms } from './rooms.js';
 import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
 import { layerMode, wallMode } from './stages.js';
@@ -197,6 +198,7 @@ export class Editor2D {
     drawFloor(ctx, this.floor, this.view, this.theme, {
       stage: this.stage, width: this.w, height: this.h, grid: this.settings.grid, dims: this.settings.dims, units: this.settings.units,
       show: this.settings.show, selection: this.store.selection, hover: this.hover, faceHover: this.state.faceHover, onImage: () => this.requestRender(),
+      multi: new Set(this.store.multi || []),
     });
     this.drawPreview(ctx);
     this.hooks.onView?.(this.view);
@@ -275,6 +277,30 @@ export class Editor2D {
     }
     if ((this.tool === 'opening' || this.tool === 'door' || this.tool === 'window') && st.ghost) {
       drawOpening(ctx, st.ghost.opening, st.ghost.wall, this.view, t, false, true);
+    }
+    if (this.drag?.mode === 'box' && this.drag.cur) {
+      const a = S(this.drag.start), b = S(this.drag.cur);
+      ctx.fillStyle = 'rgba(240,140,0,0.08)';
+      ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+      ctx.setLineDash([]);
+    }
+    for (const it of (this.tool === 'place' && st.ghostMany) || []) {
+      const p = S(it), k = itemDrawScale(it, this.view.scale);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(((it.rot || 0) * Math.PI) / 180);
+      ctx.scale(this.view.scale * k, this.view.scale * k);
+      if (it.mirror) ctx.scale(-1, 1);
+      ctx.lineWidth = 1 / (this.view.scale * k);
+      ctx.globalAlpha = 0.65;
+      ctx.fillStyle = it.color || '#ddd';
+      ctx.strokeStyle = t.accent;
+      drawItem2D(ctx, it);
+      ctx.restore();
     }
     if ((this.tool === 'place' || this.tool === 'image') && st.ghost) {
       const it = st.ghost, p = S(it), k = itemDrawScale(it, this.view.scale);
@@ -390,10 +416,12 @@ export class Editor2D {
       if (Math.abs(l.x) <= (it.w * k) / 2 + tol * 0.3 && Math.abs(l.y) <= (it.d * k) / 2 + tol * 0.3) return { kind: 'items', id: it.id };
     }
     for (const l of f.labels) {
+      if (!onSheet(l, this.stage)) continue;
       const hw = ((l.text.length * (l.size || 14) * 0.3) + 6) / this.view.scale, hh = ((l.size || 14) / 2 + 4) / this.view.scale;
       if (Math.abs(p.x - l.x) <= hw && Math.abs(p.y - l.y) <= hh) return { kind: 'labels', id: l.id };
     }
     for (const d of f.dims) {
+      if (!onSheet(d, this.stage)) continue;
       const dir = norm(sub(d.b, d.a)), n = { x: -dir.y, y: dir.x };
       const pr = projectOnSegment(p, add(d.a, mul(n, d.offset || 0)), add(d.b, mul(n, d.offset || 0)));
       if (pr.dist <= tol) return { kind: 'dims', id: d.id };
@@ -452,6 +480,13 @@ export class Editor2D {
       if (this.tool === 'wall' && this.state.anchor) this.finishChain();
       else if (this.tool === 'line' && this.state.points?.length) this.finishLine();
       else if (this.tool !== 'select') this.setTool('select');
+      else {
+        // Atlases režīmā labā poga atver konteksta izvēlni objektam zem kursora (ja plāns netika bīdīts).
+        const { sx, sy } = this.eventPoint(e);
+        const r = this.rightDownAt;
+        if (r && Math.hypot(sx - r.sx, sy - r.sy) > 5) return;
+        this.contextAt(this.toWorld(sx, sy), e.clientX, e.clientY);
+      }
     });
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -475,12 +510,20 @@ export class Editor2D {
       this.drag = null;
       return;
     }
+    if (e.button === 2) this.rightDownAt = { sx, sy };
     if (e.button === 1 || e.button === 2 || this.spaceDown) {
       this.drag = { mode: 'pan', sx, sy, ox: this.view.ox, oy: this.view.oy };
       return;
     }
     const p = this.toWorld(sx, sy);
     const free = e.shiftKey;
+    if (this.drag?.follow) {
+      // „Pārvietot” no konteksta izvēlnes: klikšķis noliek objektu
+      this.drag = null;
+      this.store.touch();
+      this.status('Pārvietots.');
+      return;
+    }
     switch (this.tool) {
       case 'select': return this.downSelect(p, sx, sy, e);
       case 'wall': return this.clickWall(this.snap(p, { anchor: this.state.anchor, free }).p);
@@ -588,13 +631,15 @@ export class Editor2D {
       }
     }
     if (this.tool === 'demolish' && this.state.sectionStart) this.finishSection();
-    if (this.drag?.moved && this.drag.mode !== 'pan') this.store.touch();
+    if (this.drag?.mode === 'box') this.finishBox();
+    if (this.drag?.follow) return;
+    if (this.drag?.moved && this.drag.mode !== 'pan' && this.drag.mode !== 'box') this.store.touch();
     this.drag = null;
     this.requestRender();
   }
 
   // ---------- atlase un vilkšana ----------
-  downSelect(p, sx, sy) {
+  downSelect(p, sx, sy, e = {}) {
     const s = this.store.selection, sw = this.store.selected();
     if (s?.kind === 'walls' && sw) {
       for (const end of ['a', 'b']) {
@@ -605,10 +650,34 @@ export class Editor2D {
       }
     }
     const hit = this.hitTest(p);
+    if (!hit && e.shiftKey) {
+      // Shift + vilkšana tukšā vietā — rāmja atlase
+      this.drag = { mode: 'box', start: p, cur: p, sx, sy };
+      return;
+    }
     if (!hit) {
       this.store.select(null);
       this.drag = { mode: 'pan', sx, sy, ox: this.view.ox, oy: this.view.oy };
       return;
+    }
+    if (hit.kind === 'items') {
+      const f = this.floor, it = f.items.find((x) => x.id === hit.id);
+      const members = groupMembers(f, it).filter((x) => this.selectable('items', x)).map((x) => x.id);
+      const cur = this.store.selectedItems().map((x) => x.id);
+      if (e.shiftKey) {
+        const inSel = cur.includes(hit.id);
+        const ids = inSel ? cur.filter((id) => !members.includes(id)) : [...cur, ...members];
+        this.store.selectMany(ids, ids.length ? { kind: 'items', id: inSel ? ids[ids.length - 1] : hit.id } : null);
+        return;
+      }
+      const many = this.store.multi?.includes(hit.id) ? this.store.multi : members.length > 1 ? members : null;
+      if (many) {
+        if (!this.store.multi?.includes(hit.id)) this.store.selectMany(many, hit);
+        else this.store.selection = hit;
+        this.drag = { mode: 'moveMany', start: p, sx, sy, orig: new Map(f.items.filter((x) => many.includes(x.id)).map((x) => [x.id, { x: x.x, y: x.y }])) };
+        this.store.emit('select');
+        return;
+      }
     }
     this.store.select(hit);
     if (hit.kind === 'rooms') {
@@ -629,12 +698,27 @@ export class Editor2D {
       this.requestRender();
       return;
     }
+    if (dr.mode === 'box') {
+      dr.cur = p;
+      this.requestRender();
+      return;
+    }
     if (!dr.moved) {
       if (Math.hypot(sx - dr.sx, sy - dr.sy) < 4) return;
       dr.moved = true;
       this.store.checkpoint();
     }
     const f = this.floor;
+    if (dr.mode === 'moveMany') {
+      let delta = sub(p, dr.start);
+      if (this.settings.snap && !e.shiftKey) delta = { x: round(delta.x, 5), y: round(delta.y, 5) };
+      for (const it of f.items) {
+        const o = dr.orig.get(it.id);
+        if (o) Object.assign(it, add(o, delta));
+      }
+      this.requestRender();
+      return;
+    }
     if (dr.mode === 'joint') {
       const to = this.snap(p, { free: e.shiftKey }).p;
       const before = snapshotWalls(f);
@@ -699,6 +783,58 @@ export class Editor2D {
     const back = mul(n, -side);
     it.rot = Math.round(normAngle((Math.atan2(back.y, back.x) * 180) / Math.PI + 90));
     return true;
+  }
+
+  finishBox() {
+    const { start: a, cur: b } = this.drag;
+    const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+    if (x1 - x0 < 2 && y1 - y0 < 2) return;
+    const f = this.floor;
+    const hits = f.items.filter((it) => this.selectable('items', it) && it.x >= x0 && it.x <= x1 && it.y >= y0 && it.y <= y1);
+    const ids = new Set(this.store.selectedItems().map((x) => x.id));
+    for (const it of hits) for (const m of groupMembers(f, it)) ids.add(m.id);
+    this.store.selectMany([...ids]);
+    this.status(ids.size ? `Atlasīti ${ids.size} priekšmeti. Labā poga — grupēt, kopēt, spoguļot, dzēst.` : 'Rāmī nav priekšmetu.');
+  }
+
+  /** Sāk atlasītā objekta (vai vairākatlases) pārvietošanu līdz nākamajam klikšķim. */
+  beginMove(p) {
+    const s = this.store.selection, obj = this.store.selected();
+    if (!s || !obj || s.kind === 'rooms') return;
+    this.store.checkpoint();
+    if (this.store.multi?.length) {
+      this.drag = { mode: 'moveMany', follow: true, moved: true, start: p, sx: 0, sy: 0, orig: new Map(this.store.selectedItems().map((x) => [x.id, { x: x.x, y: x.y }])) };
+    } else {
+      this.drag = { mode: 'move', follow: true, moved: true, start: p, sx: 0, sy: 0, orig: JSON.parse(JSON.stringify(obj)), kind: s.kind };
+      if (s.kind === 'walls') this.drag.joints = [{ ...obj.a }, { ...obj.b }];
+    }
+    this.status('Pārvieto peli un klikšķini, kur novietot.');
+  }
+
+  /** Konteksta izvēlne: atlasa objektu zem kursora un nodod to lietotnei. */
+  contextAt(p, clientX, clientY) {
+    let hit = this.hitTest(p);
+    if (!hit && this.stage?.id === 'break_walls') {
+      for (const target of ['opening', 'radiator', 'panel']) {
+        hit = this.demolishTarget(p, target);
+        if (hit) break;
+      }
+    }
+    if (!hit) {
+      const nw = nearestWall({ walls: this.floor.walls.filter((w) => wallMode(this.stage, w) !== 'hidden' && w.kind !== 'virtual') }, p, 20 / this.view.scale + 10);
+      if (nw && (this.stage?.edit?.includes('walls') || this.stage?.id === 'break_walls')) hit = { kind: 'walls', id: nw.wall.id };
+    }
+    if (hit) {
+      const inMulti = hit.kind === 'items' && this.store.multi?.includes(hit.id);
+      if (inMulti) this.store.selection = hit;
+      else if (hit.kind === 'items') {
+        const it = this.floor.items.find((x) => x.id === hit.id);
+        const members = groupMembers(this.floor, it).map((x) => x.id);
+        if (members.length > 1) this.store.selectMany(members, hit);
+        else this.store.select(hit);
+      } else this.store.select(hit);
+    }
+    this.hooks.onContext?.({ p, hit, clientX, clientY });
   }
 
   // ---------- sienas ----------
@@ -787,6 +923,12 @@ export class Editor2D {
 
   // ---------- priekšmeti un attēli ----------
   ghostItem(p, free) {
+    if (this.state.preset) {
+      const q = this.settings.snap && !free ? { x: round(p.x, 5), y: round(p.y, 5) } : p;
+      this.state.ghostMany = itemsFromLibrary(this.state.preset, q, this.layer);
+      if (this.state.ghostMany.length === 1 && !free && this.settings.magnet) this.magnet(this.state.ghostMany[0]);
+      return;
+    }
     const def = byKind(this.state.kind);
     if (!def) return;
     const over = this.state.over || {};
@@ -805,6 +947,15 @@ export class Editor2D {
 
   placeItem(p, free) {
     this.ghostItem(p, free);
+    if (this.state.preset) {
+      const list = this.state.ghostMany || [];
+      if (!list.length) return;
+      this.store.commit((f) => f.items.push(...list));
+      if (list.length > 1) this.store.selectMany(list.map((x) => x.id), { kind: 'items', id: list[0].id });
+      else this.store.select({ kind: 'items', id: list[0].id });
+      this.state.ghostMany = null;
+      return;
+    }
     const g = this.state.ghost;
     if (!g) return;
     this.store.commit((f) => f.items.push({ ...g }));
@@ -897,8 +1048,7 @@ export class Editor2D {
   }
 
   // ---------- demontāža ----------
-  demolishTarget(p) {
-    const target = this.state.target || 'wall';
+  demolishTarget(p, target = this.state.target || 'wall') {
     const f = this.floor;
     if (target === 'opening') {
       const h = this.rawHit(p, { any: true });
@@ -1079,6 +1229,19 @@ export class Editor2D {
       return true;
     }
     const sel = this.store.selected();
+    const many = this.store.multi?.length ? this.store.selectedItems() : null;
+    if (many && this.tool === 'select') {
+      if (k === 'r' || k === 'R') {
+        this.store.commit(() => rotateItems(many, e.shiftKey ? -15 : 90));
+        return true;
+      }
+      const step = e.shiftKey ? 10 : 1;
+      const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[k];
+      if (mv) {
+        this.store.commit(() => many.forEach((it) => { it.x += mv[0]; it.y += mv[1]; }));
+        return true;
+      }
+    }
     if (this.tool === 'place' && (k === 'r' || k === 'R')) {
       this.state.rot = normAngle((this.state.rot || 0) + 90);
       if (this.state.ghost) this.state.ghost.rot = this.state.rot;

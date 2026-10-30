@@ -1,13 +1,15 @@
 // Lietotnes savienojums: lapas (stadijas), rīkjoslas, īpašības, stāvi un varianti, projekti, eksports.
-import { Store, newProject, newFloor, uid, wallLength, wallDir, clampOpening, moveJoint, makeWall, STATUSES, statusLabel, snapshotWalls, followHosts } from './model.js';
+import { Store, newProject, newFloor, uid, wallLength, wallDir, clampOpening, moveJoint, makeWall, makeOpening, STATUSES, statusLabel, snapshotWalls, followHosts,
+  groupMembers, groupItems, ungroupItems, rotateItems, mirrorItems, cloneItems, libraryEntry, tvSize, tvDiagonal, nearestWindow, windowSillHeight,
+  waterOutputs, toggleWaterOutput, reverseWaterOutputs, WATER_OUTPUTS, setDimLength, splitDim, mergeWall, splitLine, LAYINGS, roomTiling, windowCasements } from './model.js';
 import { Editor2D, TOOLS } from './editor2d.js';
 import { FLOOR_FINISHES, byKind } from './catalog.js';
 import { keepRoomsInSync } from './rooms.js';
-import { roomStats, floorStats, specification, openingSchedule, statsCSV, fmt, wallMaterials, lineSchedule, zoneSchedule, finishSchedule } from './calc.js';
+import { roomStats, floorStats, specification, openingSchedule, statsCSV, fmt, wallMaterials, lineSchedule, zoneSchedule, finishSchedule, roomTiles } from './calc.js';
 import { WALL_MATERIALS, wallMaterial } from './walls.js';
 import { roomElevations, elevationSVG } from './elevations.js';
 import { buildAlbum, SHEET_TYPES } from './album.js';
-import { THEME, floorBounds, wallKind, renderFloorImage, floorSVG, SHOW_DEFAULTS } from './draw2d.js';
+import { THEME, floorBounds, wallKind, renderFloorImage, floorSVG, SHOW_DEFAULTS, isCamera, isScreen, finishDef } from './draw2d.js';
 import { STAGES, stageById } from './stages.js';
 import { FINISHES, LINE_TYPES, ZONE_TYPES } from './catalog-data.js';
 import { createLeftbar } from './leftbar.js';
@@ -15,7 +17,7 @@ import { createShield } from './shield.js';
 import { sampleProject } from './sample.js';
 import { showroomProject } from './showroom.js';
 import * as storage from './storage.js';
-import { add, mul } from './geometry.js';
+import { add, mul, projectOnSegment } from './geometry.js';
 import { toUnit, fromUnit, inputValue, unitStep, unitName, fmtNum } from './units.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -56,6 +58,7 @@ const editor = new Editor2D($('#plan'), store, {
   onTool: () => { leftbar?.sync(); syncToolButtons(); },
   onEdit: () => setTimeout(() => $('#props input, #props select')?.focus(), 30),
   onView: (v) => syncZoom(v),
+  onContext: (ev) => showContextMenu(ev),
 });
 const savedSettings = storage.getPref('settings', {});
 Object.assign(editor.settings, savedSettings, { show: { ...SHOW_DEFAULTS, ...(savedSettings.show || {}) } });
@@ -291,6 +294,7 @@ const finishOptions = (target, blank = '— nav —') => [['', blank], ...Object
 
 const KIND_NAMES = { walls: 'Siena', openings: 'Aile', items: 'Priekšmets', rooms: 'Telpa', labels: 'Komentārs', dims: 'Izmērs', lines: 'Līnija', zones: 'Zona' };
 const LINE_COLORS = [['', 'Pēc veida'], ['#d93025', 'Sarkans'], ['#2f6fd6', 'Zils'], ['#2e9b3f', 'Zaļš'], ['#e0a100', 'Dzeltens'], ['#7a4bc2', 'Violets'], ['#333333', 'Melns']];
+const BALCONY_CONFIGS = [['glassTop', 'Stikls augšā ar imposti'], ['glassAll', 'Stikls visur ar imposti'], ['sandwich', 'Sendviča panelis ar imposti'], ['glass', 'Viss stikls'], ['solidSandwich', 'Viss sendviča panelis']];
 const OPENING_VARIANTS = {
   window: [['window', 'Logs'], ['opening', 'Aile bez loga'], ['windoor', 'Balkona bloks'], ['french', 'Franču logs (veramais)'], ['frenchSliding', 'Franču logs (bīdāmais)'], ['french4', 'Četrvērtņu franču logs']],
   door: [['single', 'Durvis'], ['opening', 'Aile'], ['double', 'Divviru durvis'], ['sliding', 'Bīdāmās'], ['sliding2', 'Divviru bīdāmās'], ['pocket', 'Iebīdāmās sienā'], ['pocket2', 'Divviru iebīdāmās'], ['stack', 'Paralēli bīdāma sistēma'], ['slideSys', 'Bīdāma sistēma'], ['pivot', 'Pagriežamās'], ['pivot2', 'Divviru pagriežamās'], ['bifold', 'Salokāmās'], ['bifold2', 'Divviru salokāmās'], ['accordion', 'Harmonikas'], ['glass', 'Stikla'], ['garage', 'Garāžas vārti'], ['balcony', 'Balkona durvis']],
@@ -315,7 +319,7 @@ function renderProps() {
         ${sel('Krāsa', 'color', obj.color || '', [['', 'Pēc materiāla (balta)'], ['grey', 'Pelēka'], ['black', 'Melna']])}
         ${sel('Nesošā / starpsiena', 'kind', wallKind(obj), [['bearing', 'Nesošā / ārsiena'], ['partition', 'Starpsiena'], ['balcony', 'Balkona margas']])}
         ${sel('Statuss', 'status', obj.status || 'existing', [['existing', 'Esoša'], ['demolish', 'Demontējama'], ['new', 'Jauna']])}</div>
-        <div class="row">${btn('Sadalīt uz pusēm', 'split')}${btn('Dzēst', 'delete', 'danger')}</div><p class="hint">Velc apļus sienas galos, lai mainītu stūrus; savienotās sienas un grīda sekos līdzi.</p>`;
+        <div class="row">${btn('Sadalīt uz pusēm', 'split')}${btn('Apvienot posmus', 'merge')}${btn('Dzēst', 'delete', 'danger')}</div><p class="hint">Velc apļus sienas galos, lai mainītu stūrus; savienotās sienas un grīda sekos līdzi.</p>`;
     }
   } else if (s.kind === 'openings') {
     const vlist = OPENING_VARIANTS[obj.type] || OPENING_VARIANTS.door;
@@ -326,7 +330,16 @@ function renderProps() {
       h += num(obj.type === 'window' ? 'Loga platums' : 'Ailes platums', 'width', obj.width, { min: 20 }) + num(obj.type === 'window' ? 'Loga augstums' : 'Ailes augstums', 'height', obj.height, { min: 20 }) + num('Augstums no grīdas', 'sill', obj.sill, { min: 0 });
     }
     h += num('No sienas sākuma', 'offset', obj.pos - obj.width / 2, { min: 0 });
-    if (obj.type === 'window' && obj.variant !== 'opening') h += num('Vērtņu skaits', 'casements', obj.casements ?? 2, { unit: '' }) + num('Palodzes izvirzījums', 'sillDepth', obj.sillDepth ?? 20);
+    if (obj.type === 'window' && obj.variant !== 'opening') {
+      h += num('Vērtņu skaits', 'casements', windowCasements(obj, obj.variant === 'windoor' ? obj.width - (obj.doorWidth ?? 80) : obj.width), { unit: 'gab.', min: 1 })
+        + num('Atvēršanas leņķis', 'riseAngle', obj.riseAngle || 0, { unit: '°', step: 15, min: 0 })
+        + num('Palodzes biezums', 'sillThick', obj.sillThick ?? 2, { min: 0 }) + num('Palodzes izvirzījums', 'sillDepth', obj.sillDepth ?? 5, { min: 0 })
+        + num('Palodzes pārkare sānos', 'sillOver', obj.sillOver ?? 3, { min: 0 });
+    }
+    if (obj.variant === 'balcony' || obj.variant === 'windoor') {
+      h += sel('Durvju konfigurācija', 'config', obj.config || 'glassTop', BALCONY_CONFIGS);
+      if (!['glass', 'solidSandwich'].includes(obj.config || 'glassTop')) h += num('Impostes augstums', 'mullion', obj.mullion ?? 90, { min: 10 });
+    }
     if (obj.type === 'door') h += chk('Kārba ar apmalēm', 'trims', obj.trims) + chk('Arkveida aile', 'arched', obj.arched);
     h += `${sel('Statuss', 'status', obj.status || '', [['', 'Esoša'], ['new', 'Jauna'], ['demolish', 'Demontējama']])}</div>
       <div class="row">${btn('Mainīt virināšanas virzienu', 'hinge')}${btn(obj.type === 'door' ? 'Pagriezt (uz otru pusi)' : 'Palodzes puse', 'swing')}${btn('Izveidot kopiju', 'copyOpening')}${btn('Dzēst', 'delete', 'danger')}</div>`;
@@ -334,34 +347,59 @@ function renderProps() {
     const def = byKind(obj.kind);
     if (obj.kind === '__image') {
       h += `<div class="fields">${txt('Paraksts', 'name', obj.name || '')}${num('Platums', 'w', obj.w, { min: 1 })}${num('Augstums (plānā)', 'd', obj.d, { min: 1 })}${num('Pagrieziens', 'rot', obj.rot || 0, { unit: '°', step: 15 })}</div><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
+    } else if (store.multi.length > 1) {
+      h += multiPanel();
     } else {
-      const point = def?.electric || def?.water;
+      const wgroup = def?.sym === 'waterGroup';
+      const point = def?.electric || def?.water || wgroup;
+      const fromSill = obj.fromSill && nearestWindow(f, obj);
       h += `<div class="fields">${txt('Nosaukums', 'name', obj.name || def?.name || '')}`;
+      if (isScreen(obj)) h += num('Ekrāna diagonāle', 'diag', obj.diag ?? tvDiagonal(obj.w), { unit: '″', min: 10 });
       if (!point) h += num('Garums', 'w', obj.w, { min: 1 }) + num('Platums', 'd', obj.d, { min: 1 }) + num('Augstums', 'h', obj.h, { min: 1 });
-      h += `${num('Augstums no grīdas', 'elev', obj.elev || 0, { min: 0 })}${num('Pagrieziena leņķis', 'rot', obj.rot || 0, { unit: '°', step: 15 })}`;
-      if (point && def?.electric === 'socket') h += num('Rozešu skaits blokā', 'count', obj.count ?? 1, { unit: 'gab.' });
+      if (def?.electric) h += chk('Augstums no palodzes', 'fromSill', !!fromSill);
+      h += fromSill ? num('Augstums no palodzes', 'sillElev', (obj.elev || 0) - windowSillHeight(fromSill.opening)) : num('Augstums no grīdas', 'elev', obj.elev || 0, { min: 0 });
+      h += num('Pagrieziena leņķis', 'rot', obj.rot || 0, { unit: '°', step: 15 });
+      if (point && def?.electric === 'socket') h += num('Rozešu skaits blokā', 'count', obj.count ?? 1, { unit: 'gab.', min: 1 });
+      if (['socket', 'weak'].includes(def?.electric)) h += num('Vertikālā grupa', 'vcount', obj.vcount ?? 1, { unit: 'gab.', min: 1 });
+      if (def?.water || wgroup) {
+        const outs = wgroup ? waterOutputs(obj) : [def.water];
+        if (outs.some((k) => k !== 'sewer')) h += num('Spiediena cauruļu augstums', 'pipeH', obj.pipeH ?? obj.elev ?? 0, { min: 0 });
+        if (outs.includes('sewer')) h += num('Kanalizācijas caurules augstums', 'sewerH', obj.sewerH ?? obj.elev ?? 0, { min: 0 });
+        if (wgroup) h += ['cold', 'hot', 'sewer'].map((k) => chk(`${WATER_OUTPUTS[k].name} (${WATER_OUTPUTS[k].letter})`, `out_${k}`, outs.includes(k))).join('');
+      }
+      if (isCamera(obj)) h += num('Skata leņķis', 'viewAngle', obj.viewAngle ?? 90, { unit: '°', step: 5, min: 5 }) + num('Redzamības rādiuss', 'viewRadius', obj.viewRadius ?? 5, { unit: 'm', step: 0.5, min: 0.5 }) + chk('Rādīt redzes lauku', 'showFov', obj.showFov !== false);
       if (!point) h += `<label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#cccccc'}"></label>`;
+      h += chk('Rādīt izmērus', 'showDims', obj.showDims);
+      if (point) h += chk('Rādīt attālumus līdz stūriem', 'showDist', obj.showDist);
       h += `${txt('Komentārs', 'comment', obj.comment || '')}</div>
-        <div class="row">${btn('Pagriezt 90°', 'rotate')}${point ? '' : btn('Spoguļot', 'mirror')}${btn('Izveidot kopiju', 'duplicate')}${btn('Dzēst', 'delete', 'danger')}</div>
-        <p class="hint">R — pagriezt, bultiņas — pabīdīt (Shift — pa ${lenText(10)}), Alt vilkšanas laikā — bez magnēta.</p>`;
+        <div class="row">${btn('Pagriezt 90°', 'rotate')}${point ? '' : btn('Spoguļot', 'mirror')}${btn('Izveidot kopiju', 'duplicate')}${wgroup ? btn('Mainīt secību', 'waterSeq') : ''}${btn('Saglabāt bibliotēkā', 'saveLib')}${obj.group ? btn('Atgrupēt', 'ungroup') : ''}${btn('Dzēst', 'delete', 'danger')}</div>
+        <p class="hint">R — pagriezt, bultiņas — pabīdīt (Shift — pa ${lenText(10)}), Alt vilkšanas laikā — bez magnēta. Shift+klikšķis vai Shift+vilkšana — atlasīt vairākus.</p>`;
     }
   } else if (s.kind === 'rooms') {
     const r = roomStats(f, obj);
+    const tl = roomTiling(obj, finishDef('floor', obj.floorFinish)), tiles = roomTiles(obj);
+    const tileFields = tl ? `<h4 class="props-sub">Seguma ieklāšana</h4>${num('Elementa garums', 'tileL', tl.L, { min: 1 })}${num('Elementa platums', 'tileW', tl.W, { min: 1 })}${num('Šuves biezums', 'grout', tl.grout, { min: 0 })}
+      ${num('Grīdas pacēlums', 'floorRaise', obj.floorRaise || 0, { min: 0 })}${num('Pagrieziena leņķis', 'tileAngle', tl.angle, { unit: '°', step: 5 })}
+      ${sel('Ieklāšanas veids', 'laying', tl.laying, LAYINGS)}${chk('Rādīt izmērus', 'tileDims', obj.tileDims !== false)}` : '';
     h += `<div class="fields">${txt('Telpas nosaukums', 'name', obj.name)}${num('Griestu augstums', 'height', obj.height || f.height, { min: 100 })}
-      ${sel('Grīdas segums', 'floorFinish', obj.floorFinish || '', finishOptions('floor').concat(FLOOR_FINISHES.filter((x) => obj.floorFinish === x.id).map((x) => [x.id, x.name])))}
+      <label class="field wide"><span>Telpas krāsa</span><input type="color" data-k="color" value="${obj.color || '#ffffff'}"></label>
+      ${sel('Grīdas segums', 'floorFinish', obj.floorFinish || '', finishOptions('floor').concat(FLOOR_FINISHES.filter((x) => obj.floorFinish === x.id).map((x) => [x.id, x.name])))}${tileFields}
       ${sel('Grīdlīste', 'baseboard', obj.baseboard || '', finishOptions('baseboard'))}
       ${sel('Griesti', 'ceiling', obj.ceiling || '', finishOptions('ceiling'))}${chk('Griestu līste', 'ceilingMolding', obj.ceilingMolding)}
       ${sel('Grīdas klons', 'screed', obj.screed || '', finishOptions('screed'))}${num('Klona biezums', 'screedLevel', obj.screedLevel ?? 5)}
       ${sel('Grīdas hidroizolācija', 'waterFloor', obj.waterFloor || '', finishOptions('waterFloor'))}
       ${chk('Neslēpt sienu skatos', 'showInElev', obj.showInElev !== false)}</div>
-      <dl class="stats">${stat('Laukums', `${fmt(r.area)} m²`)}${stat('Perimetrs', `${fmt(r.perimeter)} m`)}${stat('Sienas bez ailēm', `${fmt(r.wallNet)} m²`)}${stat('Tilpums', `${fmt(r.volume)} m³`)}${stat('Grīdlīste', `${fmt(r.baseboard)} m`)}${stat('Rozetes / slēdži / gaism.', `${r.sockets} / ${r.switches} / ${r.lights}`)}</dl>
+      <dl class="stats">${stat('Laukums', `${fmt(r.area)} m²`)}${stat('Perimetrs', `${fmt(r.perimeter)} m`)}${stat('Sienas bez ailēm', `${fmt(r.wallNet)} m²`)}${stat('Tilpums', `${fmt(r.volume)} m³`)}${stat('Grīdlīste', `${fmt(r.baseboard)} m`)}${stat('Rozetes / slēdži / gaism.', `${r.sockets} / ${r.switches} / ${r.lights}`)}${tiles ? stat('Seguma elementi (+10 %)', `${tiles.count} gab.`) : ''}</dl>
       <p class="hint">Grīdas forma izriet no sienām: pārvietojot, pagarinot vai dzēšot sienu, grīda mainās līdzi.</p>
-      <div class="row">${btn('Sienu skati', 'elev')}</div>`;
+      <div class="row">${tl ? btn('Pagriezt segumu 45°', 'rot45') : ''}${btn('Sienu skati', 'elev')}</div>`;
   } else if (s.kind === 'labels') {
     h += `<div class="fields">${txt('Komentāra teksts', 'text', obj.text)}${num('Fonta izmērs', 'size', obj.size || 14, { unit: 'px', min: 8 })}
-      <label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#222222'}"></label>${chk('Rāmis', 'frame', obj.frame)}</div><div class="row">${btn('Izveidot kopiju', 'duplicate')}${btn('Dzēst', 'delete', 'danger')}</div>`;
+      <label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#222222'}"></label>${chk('Rāmis', 'frame', obj.frame)}${chk('Rādīt visās lapās', 'allSheets', obj.allSheets !== false)}</div><div class="row">${btn('Izveidot kopiju', 'duplicate')}${btn('Dzēst', 'delete', 'danger')}</div>`;
   } else if (s.kind === 'dims') {
-    h += `<div class="fields">${num('Atkāpe', 'offset', obj.offset || 0)}<label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#333333'}"></label></div><dl class="stats">${stat('Garums', lenText(Math.hypot(obj.b.x - obj.a.x, obj.b.y - obj.a.y)))}</dl><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
+    h += `<div class="fields">${num('Garums', 'len', Math.hypot(obj.b.x - obj.a.x, obj.b.y - obj.a.y), { min: 1 })}${num('Atkāpe', 'offset', obj.offset || 0)}<label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#333333'}"></label>
+      ${chk('Rādīt visās lapās', 'allSheets', obj.allSheets !== false)}${chk('Rādīt visos režīmos (arī 3D)', 'allModes', obj.allModes)}
+      <label class="field"><span>Sadalīt daļās</span><input type="number" id="dimParts" value="2" min="2" max="50" step="1"><em>daļas</em></label></div>
+      <div class="row">${btn('Sadalīt', 'splitDim')}${btn('Pārvietot', 'move')}${btn('Dzēst', 'delete', 'danger')}</div>`;
   } else if (s.kind === 'lines') {
     const def = LINE_TYPES[obj.type] || {};
     const L = obj.points.reduce((q, p, i) => (i ? q + Math.hypot(p.x - obj.points[i - 1].x, p.y - obj.points[i - 1].y) : 0), 0);
@@ -369,7 +407,7 @@ function renderProps() {
     if (def.duct || obj.type === 'beam') h += num('Platums', 'width', obj.width ?? def.width) + num('Augstums', 'height', obj.height ?? 6);
     if (def.duct) h += sel('Caurules tips', 'round', obj.round ? '1' : '0', [['0', 'Plakana'], ['1', 'Apaļa']]);
     else h += sel('Krāsa', 'color', obj.color || '', LINE_COLORS);
-    h += `${num('Nolaidums no griestiem', 'drop', obj.drop || 0)}</div><dl class="stats">${stat('Garums', `${fmt(L / 100)} m`)}${stat('Lūzuma punkti', obj.points.length)}</dl><div class="row">${btn('Izveidot kopiju', 'copyLine')}${btn('Dzēst', 'delete', 'danger')}</div>`;
+    h += `${num('Nolaidums no griestiem', 'drop', obj.drop || 0)}</div><dl class="stats">${stat('Garums', `${fmt(L / 100)} m`)}${stat('Lūzuma punkti', obj.points.length)}</dl><div class="row">${btn('Izveidot kopiju', 'copyLine')}${btn('Sadalīt posmos', 'splitLine')}${btn('Dzēst', 'delete', 'danger')}${btn('Dzēst visas šī veida', 'deleteAllLines', 'danger')}</div>`;
   } else if (s.kind === 'zones') {
     const def = ZONE_TYPES[obj.type] || {};
     const area = obj.points.reduce((acc, p, i, a) => { const q = a[(i + 1) % a.length]; return acc + p.x * q.y - q.x * p.y; }, 0);
@@ -379,13 +417,21 @@ function renderProps() {
     if (obj.type === 'ceiling2') h += num('Kārbas nolaidums', 'drop', obj.drop ?? 10) + num('Kārbas platums', 'boxWidth', obj.boxWidth ?? 40);
     h += `</div><dl class="stats">${stat('Laukums', `${fmt(Math.abs(area) / 2e4)} m²`)}${stat(def.name || 'Zona', '')}</dl><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
   }
-  el.innerHTML = panelHead(KIND_NAMES[s.kind] || 'Objekts', 'props') + `<div class="props-body">${h}</div>`;
+  el.innerHTML = panelHead(store.multi.length > 1 ? 'Atlasīti priekšmeti' : obj.group && s.kind === 'items' ? 'Priekšmets (grupā)' : KIND_NAMES[s.kind] || 'Objekts', 'props') + `<div class="props-body">${h}</div>`;
   el.hidden = false;
   bindFields(el, (k, v) => {
     store.commit(() => applyProp(f, s.kind, obj, k, v));
-    if (['type', 'variant', 'material'].includes(k)) renderProps();
+    if (['type', 'variant', 'material', 'config', 'fromSill', 'floorFinish', 'diag', 'w', 'allSheets', 'casements'].includes(k) || k.startsWith('out_')) renderProps();
   });
   $$('[data-act]', el).forEach((b) => b.addEventListener('click', () => propAction(b.dataset.act, obj)));
+}
+
+function multiPanel() {
+  const items = store.selectedItems();
+  const grouped = items.length && items.every((it) => it.group && it.group === items[0].group);
+  return `<p class="hint">Atlasīti ${items.length} priekšmeti${grouped ? ' (grupa)' : ''}. Velc jebkuru no tiem, lai pārvietotu visus.</p>
+    <div class="row">${grouped ? btn('Atgrupēt', 'ungroup') : btn('Grupēt', 'group')}${btn('Pagriezt 90°', 'rotate')}${btn('Spoguļot', 'mirror')}${btn('Izveidot kopiju', 'duplicate')}${btn('Saglabāt bibliotēkā', 'saveLib')}${btn('Dzēst', 'delete', 'danger')}</div>
+    <p class="hint">Shift+klikšķis pievieno vai izņem priekšmetu; Shift+vilkšana tukšā vietā — atlase ar rāmi.</p>`;
 }
 
 function bindFields(el, onChange) {
@@ -418,8 +464,51 @@ function applyProp(f, kind, obj, k, v) {
     if (v) obj.color = v; else delete obj.color;
     return;
   }
+  if (kind === 'items') {
+    if (k === 'diag') {
+      Object.assign(obj, tvSize(v), { diag: v });
+      return;
+    }
+    if (k === 'fromSill') {
+      if (v && !nearestWindow(f, obj)) {
+        toast('Tuvumā nav loga — augstumu var mērīt tikai no palodzes blakus logam.');
+        return;
+      }
+      if (v) obj.fromSill = true; else delete obj.fromSill;
+      return;
+    }
+    if (k === 'sillElev') {
+      const win = nearestWindow(f, obj);
+      obj.elev = Math.max(0, (win ? windowSillHeight(win.opening) : 0) + v);
+      return;
+    }
+    if (k.startsWith('out_')) {
+      if (!toggleWaterOutput(obj, k.slice(4))) toast('Vismaz vienam izvadam jāpaliek.');
+      return;
+    }
+    if (k === 'vcount' || k === 'count') {
+      obj[k] = Math.max(1, Math.min(10, Math.round(v)));
+      return;
+    }
+    if (k === 'viewAngle') v = Math.max(5, Math.min(360, v));
+  }
+  if (kind === 'rooms' && k === 'tileAngle') {
+    obj.tileAngle = ((v % 360) + 360) % 360;
+    return;
+  }
+  if ((kind === 'dims' || kind === 'labels') && k === 'allSheets') {
+    obj.allSheets = v;
+    if (!v) obj.layer = stage.id;
+    return;
+  }
+  if (kind === 'dims' && k === 'len') {
+    setDimLength(obj, v);
+    return;
+  }
   if (kind === 'openings') {
     const w = f.walls.find((x) => x.id === obj.wallId);
+    if (k === 'casements') v = Math.max(1, Math.min(8, Math.round(v)));
+    if (k === 'riseAngle') v = Math.max(0, Math.min(180, v));
     if (k === 'offset') obj.pos = v + obj.width / 2;
     else if (k === 'status') { if (v) obj.status = v; else delete obj.status; }
     else obj[k] = v;
@@ -444,8 +533,56 @@ function applyProp(f, kind, obj, k, v) {
 
 function propAction(act, obj) {
   const f = store.floor;
+  const many = store.multi.length > 1 ? store.selectedItems() : null;
   switch (act) {
     case 'delete': store.deleteSelected(); break;
+    case 'merge':
+      store.commit((fl) => { if (!mergeWall(fl, obj)) toast('Blakus nav kolineāras sienas ar tādu pašu biezumu.'); });
+      break;
+    case 'group': {
+      const items = store.selectedItems();
+      if (items.length < 2) return toast('Atlasi vismaz divus priekšmetus (Shift+klikšķis vai Shift+vilkšana).');
+      store.commit(() => groupItems(items));
+      store.selectMany(items.map((x) => x.id), store.selection);
+      toast(`Sagrupēti ${items.length} priekšmeti — tie pārvietojas kopā.`);
+      break;
+    }
+    case 'ungroup': {
+      const items = many || groupMembers(f, obj);
+      store.commit(() => ungroupItems(items));
+      store.select(store.selection);
+      toast('Grupa izjaukta.');
+      break;
+    }
+    case 'saveLib': {
+      const items = many || (obj.group ? groupMembers(f, obj) : [obj]);
+      const name = items.length > 1 ? `Grupa: ${items.map((x) => x.name).filter(Boolean)[0] || 'priekšmeti'} (${items.length})` : obj.name || 'Priekšmets';
+      storage.addToLibrary(libraryEntry(items, name, stage.id));
+      leftbar.refresh();
+      toast(`„${name}” saglabāts sadaļā „Mana bibliotēka” (kreisajā joslā).`);
+      break;
+    }
+    case 'waterSeq': store.commit(() => reverseWaterOutputs(obj)); break;
+    case 'rot45': store.commit(() => { obj.tileAngle = ((obj.tileAngle || 0) + 45) % 360; }); break;
+    case 'splitDim': {
+      const n = parseInt($('#dimParts')?.value || '2', 10) || 2;
+      store.commit((fl) => {
+        const parts = splitDim(obj, n);
+        fl.dims.splice(fl.dims.indexOf(obj), 1, ...parts);
+      });
+      toast(`Izmērs sadalīts ${Math.max(2, n)} vienādās daļās.`);
+      break;
+    }
+    case 'splitLine': store.commit((fl) => { const parts = splitLine(obj); fl.lines.splice(fl.lines.indexOf(obj), 1, ...parts); }); break;
+    case 'deleteAllLines': {
+      const n = f.lines.filter((l) => l.type === obj.type).length;
+      confirmInline($('#props'), `Dzēst visas ${n} šī veida līnijas šajā stāvā?`, () => {
+        store.commit((fl) => { fl.lines = fl.lines.filter((l) => l.type !== obj.type); });
+        store.select(null);
+      }, 'Dzēst');
+      break;
+    }
+    case 'move': editor.beginMove(refPoint(store.selection.kind, obj)); break;
     case 'split': store.commit((fl) => {
       const L = wallLength(obj), mid = add(obj.a, mul(wallDir(obj), L / 2));
       const w2 = { ...JSON.parse(JSON.stringify(obj)), ...makeWall(mid, obj.b, obj.thickness, obj.height), kind: obj.kind, status: obj.status, material: obj.material };
@@ -455,8 +592,15 @@ function propAction(act, obj) {
     }); break;
     case 'hinge': store.commit(() => { obj.hinge = !obj.hinge; }); break;
     case 'swing': store.commit(() => { obj.swing = !obj.swing; }); break;
-    case 'rotate': store.commit(() => { obj.rot = ((obj.rot || 0) + 90) % 360; }); break;
-    case 'mirror': store.commit(() => { obj.mirror = !obj.mirror; }); break;
+    case 'rotate': store.commit(() => rotateItems(many || (obj.group ? groupMembers(f, obj) : [obj]), 90)); break;
+    case 'mirror': store.commit(() => mirrorItems(many || (obj.group ? groupMembers(f, obj) : [obj]))); break;
+    case 'comment': setTimeout(() => $('#props [data-k="comment"]')?.focus(), 30); break;
+    case 'showDims': case 'showDist': case 'showFov':
+      store.commit(() => { obj[act] = act === 'showFov' ? obj.showFov === false : !obj[act]; });
+      break;
+    case 'demolish': store.commit(() => { obj.status = 'demolish'; }); break;
+    case 'undemolish': store.commit(() => { if (store.selection.kind === 'walls') obj.status = 'existing'; else delete obj.status; }); break;
+    case 'addDoor': case 'addAile': case 'addWindow': addOpeningAt(obj, act); break;
     case 'duplicate': duplicateSelection(); break;
     case 'copyOpening': {
       const w = f.walls.find((x) => x.id === obj.wallId);
@@ -475,8 +619,152 @@ function propAction(act, obj) {
   }
 }
 
+/** Objekta atskaites punkts pārvietošanai („paceļ” objektu aiz šī punkta). */
+function refPoint(kind, obj) {
+  if (kind === 'dims' || kind === 'walls') return { x: (obj.a.x + obj.b.x) / 2, y: (obj.a.y + obj.b.y) / 2 };
+  if (kind === 'lines' || kind === 'zones') return { ...obj.points[0] };
+  if (kind === 'openings') {
+    const w = store.floor.walls.find((x) => x.id === obj.wallId);
+    return w ? add(w.a, mul(wallDir(w), obj.pos)) : { x: 0, y: 0 };
+  }
+  return { x: obj.x, y: obj.y };
+}
+
+// ---------- konteksta izvēlne (labā poga atlases režīmā) ----------
+let lastContextPoint = null;
+const ctxMenu = document.createElement('div');
+ctxMenu.className = 'ctx-menu';
+ctxMenu.setAttribute('role', 'menu');
+ctxMenu.hidden = true;
+document.body.appendChild(ctxMenu);
+function hideContextMenu() { ctxMenu.hidden = true; }
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-menu')) hideContextMenu(); }, true);
+window.addEventListener('blur', hideContextMenu);
+
+function contextEntries(kind, obj) {
+  const f = store.floor, E = [];
+  const add2 = (label, act, extra = {}) => E.push({ label, act, ...extra });
+  const sep = () => E.push({ sep: true });
+  if (stage.id === 'break_walls' && ['walls', 'openings', 'items'].includes(kind)) {
+    if (obj.status === 'demolish') add2('Noņemt demontāžu', 'undemolish');
+    else add2('Demontēt', 'demolish');
+    if (kind === 'walls') { sep(); add2('Sadalīt uz pusēm', 'split'); }
+    return E;
+  }
+  if (kind === 'items') {
+    const def = byKind(obj.kind);
+    const point = def?.electric || def?.water || def?.sym === 'waterGroup';
+    const many = store.multi.length > 1;
+    const grouped = many && store.selectedItems().every((it) => it.group && it.group === obj.group);
+    add2('Pagriezt 90°', 'rotate');
+    add2('Pārvietot', 'move');
+    add2(many ? 'Izveidot kopiju (visiem)' : 'Izveidot kopiju', 'duplicate');
+    if (!point || many) add2('Spoguļot', 'mirror');
+    if (!many) {
+      add2('Pievienot komentāru', 'comment');
+      add2('Rādīt izmērus', 'showDims', { checked: !!obj.showDims });
+      if (point) add2('Rādīt attālumus', 'showDist', { checked: !!obj.showDist });
+      if (isCamera(obj)) add2('Rādīt redzes lauku', 'showFov', { checked: obj.showFov !== false });
+      if (def?.sym === 'waterGroup') add2('Mainīt secību', 'waterSeq');
+    }
+    sep();
+    if (many && !grouped) add2('Grupēt', 'group');
+    if (grouped || (!many && obj.group)) add2('Atgrupēt', 'ungroup');
+    add2('Saglabāt bibliotēkā', 'saveLib');
+    sep();
+    add2(many ? `Dzēst (${store.multi.length})` : 'Dzēst', 'delete', { danger: true });
+  } else if (kind === 'openings') {
+    add2(obj.type === 'door' ? 'Pagriezt (uz otru pusi)' : 'Palodzes puse', 'swing');
+    add2('Mainīt virināšanas virzienu', 'hinge');
+    add2('Pārvietot', 'move');
+    add2('Izveidot kopiju', 'copyOpening');
+    sep();
+    add2('Dzēst', 'delete', { danger: true });
+  } else if (kind === 'walls') {
+    if (obj.kind !== 'virtual' && stage.edit?.includes('openings')) {
+      add2('Pievienot durvis', 'addDoor');
+      add2('Pievienot aili', 'addAile');
+      add2('Pievienot logu', 'addWindow');
+      sep();
+    }
+    add2('Sadalīt uz pusēm', 'split');
+    add2('Apvienot posmus', 'merge');
+    add2('Pārvietot', 'move');
+    sep();
+    add2('Dzēst', 'delete', { danger: true });
+  } else if (kind === 'dims') {
+    for (const n of [2, 3, 4]) add2(`Sadalīt ${n} daļās`, `splitDim${n}`);
+    add2('Pārvietot', 'move');
+    sep();
+    add2('Dzēst', 'delete', { danger: true });
+  } else if (kind === 'labels') {
+    add2('Izveidot kopiju', 'duplicate');
+    add2('Pārvietot', 'move');
+    sep();
+    add2('Dzēst', 'delete', { danger: true });
+  } else if (kind === 'lines') {
+    add2('Izveidot kopiju', 'copyLine');
+    add2('Sadalīt posmos', 'splitLine');
+    add2('Pārvietot', 'move');
+    sep();
+    add2('Dzēst', 'delete', { danger: true });
+    add2('Dzēst visas šī veida', 'deleteAllLines', { danger: true });
+  } else if (kind === 'zones') {
+    add2('Pārvietot', 'move');
+    sep();
+    add2('Dzēst', 'delete', { danger: true });
+  } else if (kind === 'rooms') {
+    if (stage.id === 'floor' && roomTiling(obj, finishDef('floor', obj.floorFinish))) add2('Pagriezt segumu 45°', 'rot45');
+    add2('Sienu skati', 'elev');
+  }
+  return E;
+}
+
+function showContextMenu({ p, hit, clientX, clientY }) {
+  lastContextPoint = p;
+  const obj = store.selected();
+  if (!hit || !obj) return hideContextMenu();
+  const entries = contextEntries(store.selection.kind, obj);
+  if (!entries.length) return hideContextMenu();
+  const title = store.multi.length > 1 ? `${store.multi.length} priekšmeti` : obj.name || (store.selection.kind === 'rooms' ? obj.name : KIND_NAMES[store.selection.kind]);
+  ctxMenu.innerHTML = `<div class="ctx-title">${esc(title || '')}</div>` + entries.map((e) => (e.sep ? '<hr>' : `<button type="button" role="menuitem" data-ctx="${e.act}" class="${e.danger ? 'danger' : ''}">${e.checked !== undefined ? `<i class="ctx-check">${e.checked ? '✓' : ''}</i>` : ''}${esc(e.label)}</button>`)).join('').replace(/(<hr>)+$/, '');
+  ctxMenu.hidden = false;
+  const w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
+  ctxMenu.style.left = `${Math.max(4, Math.min(clientX, window.innerWidth - w - 4))}px`;
+  ctxMenu.style.top = `${Math.max(4, Math.min(clientY, window.innerHeight - h - 4))}px`;
+  $$('[data-ctx]', ctxMenu).forEach((b) => b.addEventListener('click', () => {
+    hideContextMenu();
+    const act = b.dataset.ctx, cur = store.selected();
+    if (!cur) return;
+    if (act.startsWith('splitDim')) {
+      store.commit((fl) => fl.dims.splice(fl.dims.indexOf(cur), 1, ...splitDim(cur, +act.slice(8))));
+      return;
+    }
+    propAction(act, cur);
+  }));
+}
+
+/** Ievieto durvis, aili vai logu sienā vietā, kur tika atvērta konteksta izvēlne. */
+function addOpeningAt(w, act) {
+  const p = lastContextPoint || add(w.a, mul(wallDir(w), wallLength(w) / 2));
+  const pos = projectOnSegment(p, w.a, w.b).t * wallLength(w);
+  const o = act === 'addWindow' ? makeOpening('window', w.id, pos, { variant: 'window' }) : makeOpening('door', w.id, pos, act === 'addAile' ? { variant: 'opening' } : { variant: 'single' });
+  if (stage.newWalls) o.status = 'new';
+  if (wallLength(w) < o.width) return toast('Siena ir īsāka par aili.');
+  clampOpening(o, w);
+  store.commit((fl) => fl.openings.push(o));
+  store.select({ kind: 'openings', id: o.id });
+}
+
 function duplicateSelection() {
   const s = store.selection, obj = store.selected();
+  if (store.multi.length > 1 || (s?.kind === 'items' && obj?.group)) {
+    const src = store.multi.length > 1 ? store.selectedItems() : groupMembers(store.floor, obj);
+    const copies = cloneItems(src);
+    store.commit((f) => f.items.push(...copies));
+    store.selectMany(copies.map((x) => x.id), { kind: 'items', id: copies[0].id });
+    return;
+  }
   if (!obj || !['items', 'labels'].includes(s.kind)) return;
   const copy = { ...JSON.parse(JSON.stringify(obj)), id: uid(), x: obj.x + 20, y: obj.y + 20 };
   store.commit((f) => f[s.kind].push(copy));
@@ -841,7 +1129,7 @@ function materialsTable(f) {
     <p class="hint">Bloku skaits ir aptuvens — pēc bloka skata izmēra ar šuvi, bez rezerves griezumiem.</p></div>`;
 }
 function finishTable(f) {
-  const rows = finishSchedule(f).map((r) => `<tr><td>${esc(r.groupName)}</td><td>${esc(r.name)}</td><td class="n">${fmt(r.qty)}</td><td>${r.unit}</td></tr>`).join('');
+  const rows = finishSchedule(f).map((r) => `<tr><td>${esc(r.groupName)}</td><td>${esc(r.name)}</td><td class="n">${r.unit === 'gab.' ? r.qty.toLocaleString('lv-LV') : fmt(r.qty)}</td><td>${r.unit}</td></tr>`).join('');
   const zones = zoneSchedule(f).map((z) => `<tr><td>Zona</td><td>${esc(z.name)}</td><td class="n">${fmt(z.area)}</td><td>m²</td></tr>`).join('');
   if (!rows && !zones) return '';
   return `<div class="table-wrap calc-mat"><h3>Apdare un zonas</h3><table class="data"><thead><tr><th>Darbs</th><th>Materiāls</th><th class="n">Daudzums</th><th>Mērv.</th></tr></thead><tbody>${rows}${zones}</tbody></table></div>`;
@@ -1088,6 +1376,8 @@ document.addEventListener('keydown', (e) => {
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? store.redo() : store.undo(); return; }
   if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo(); return; }
   if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); return; }
+  if (mod && e.key.toLowerCase() === 'g' && store.selection?.kind === 'items') { e.preventDefault(); propAction(e.shiftKey ? 'ungroup' : 'group', store.selected()); return; }
+  if (e.key === 'Escape' && !ctxMenu.hidden) { hideContextMenu(); return; }
   if (currentView !== 'plan') return;
   if (e.key === 'Escape' && (leftbar.isOpen() || ['#settingsPop', '#bgPop', '#showPop', '#rotatePop'].some((id) => !$(id).hidden))) {
     closeFloating();

@@ -5,6 +5,7 @@ import { byKind, drawItem2D } from './catalog.js';
 import { WALL_MATERIALS, wallMaterial, drawMaterialSwatch } from './walls.js';
 import { icon, hasIcon } from './icons.js';
 import { fromUnit, inputValue, unitStep, unitNudge, unitName, fmtNum } from './units.js';
+import { libraryFor, removeFromLibrary } from './storage.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -51,6 +52,9 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
         h += `<button type="button" class="lb-row" data-custom="${t}" title="${name}"><span class="lb-ic">${icon(ic)}</span><span class="lb-label">${name}</span></button>`;
       }
     }
+    if (libraryFor(st.id).length) {
+      h += `<button type="button" class="lb-row group lib" data-lib title="Mana bibliotēka"><span class="lb-ic">${icon('box')}</span><span class="lb-label">Mana bibliotēka</span><span class="lb-chev">›</span></button>`;
+    }
     if (SEARCH_STAGES.has(st.id) && (st.tools || []).some((x) => x.t === 'group')) {
       h += `<button type="button" class="lb-row search" data-search title="Meklēt objektus"><span class="lb-ic">${icon('search')}</span><span class="lb-label">Meklēt objektus</span></button>`;
     }
@@ -81,8 +85,34 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
       if (!fly.hidden && fly.dataset.group === '__search') return closeFly();
       openSearch($('[data-search]', bar));
     });
+    $('[data-lib]', bar)?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!fly.hidden && fly.dataset.group === '__lib') return closeFly();
+      openLibrary($('[data-lib]', bar));
+    });
     $('[data-help]', bar).addEventListener('click', () => onHelp());
     sync();
+  }
+
+  // ---------- lietotāja bibliotēka ----------
+  function openLibrary(btn) {
+    closeFly();
+    fly.dataset.group = '__lib';
+    const list = libraryFor(stage.id);
+    fly.innerHTML = `<div class="fly-list"><div class="fly-sec static"><span>Mana bibliotēka</span></div>${list.map((e) => `<div class="fly-lib"><button type="button" class="fly-row" data-entry="${e.id}"><span>${esc(e.name)}</span><em class="fly-count">${e.items.length > 1 ? `${e.items.length} gab.` : ''}</em></button><button type="button" class="fly-del" data-del-entry="${e.id}" title="Dzēst no bibliotēkas" aria-label="Dzēst no bibliotēkas">×</button></div>`).join('')}</div>
+      <p class="fly-note">Priekšmetus pievieno ar labo peles pogu → „Saglabāt bibliotēkā”.</p>`;
+    $$('[data-entry]', fly).forEach((b) => b.addEventListener('click', () => {
+      const entry = list.find((x) => x.id === b.dataset.entry);
+      closeFly();
+      activate({ t: 'preset', entry, name: entry.name }, 'lib');
+    }));
+    $$('[data-del-entry]', fly).forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFromLibrary(b.dataset.delEntry);
+      if (libraryFor(stage.id).length) openLibrary($('[data-lib]', bar));
+      else render(stage);
+    }));
+    showFly(btn);
   }
 
   // ---------- grupas saraksts ----------
@@ -189,6 +219,7 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
       case 'rect': editor.setTool('rect', { spec }); break;
       case 'opening': editor.setTool('opening', { spec }); break;
       case 'item': editor.setTool('place', { kind: spec.item, over: {} }); break;
+      case 'preset': editor.setTool('place', { preset: spec.entry }); break;
       case 'line': editor.setTool('line', { spec }); break;
       case 'zone': editor.setTool('zone', { spec }); break;
       case 'demolish': editor.setTool('demolish', { target: spec.target }); break;
@@ -207,6 +238,7 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
     const tool = editor.tool;
     if (tool === 'select') active = null;
     $$('.lb-row[data-i]', bar).forEach((b) => b.classList.toggle('active', !!active && active.row === +b.dataset.i));
+    $('[data-lib]', bar)?.classList.toggle('active', active?.row === 'lib');
     $$('.lb-row[data-custom]', bar).forEach((b) => b.classList.toggle('active', tool === b.dataset.custom || (active?.row === 'c-zone' && b.dataset.custom === 'zone')));
     if (tool === 'select' || !active) cfg.hidden = true;
   }
@@ -327,5 +359,5 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
     }));
   }
 
-  return { render, sync, closeFly, activate, showConfig, isOpen: () => !fly.hidden };
+  return { render, sync, closeFly, activate, showConfig, isOpen: () => !fly.hidden, refresh: () => stage && render(stage) };
 }

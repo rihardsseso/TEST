@@ -884,3 +884,36 @@ table.data tbody tr:hover { background: #fff7ee; }
   .sheet { transform: none; margin: 0; box-shadow: none; width: 297mm; height: 210mm; break-after: page; page-break-after: always; }
   .sheet:last-child { break-after: auto; page-break-after: auto; }
 }
+
+/* ---------- sadalnes ievadi, kopņu ligzdas, vadu šķērsgriezumi ---------- */
+.sh-inputs { display: flex; gap: 10px; flex-wrap: wrap; }
+.sh-input { display: grid; justify-items: center; gap: 3px; min-width: 120px; padding: 6px 10px; background: #fafafa; border: 1px solid #7d7d7d; border-radius: 4px; font-size: 11px; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.sh-input b { font-size: 12.5px; }
+.sh-input.sel { outline: 2px solid var(--orange); outline-offset: 1px; }
+.sh-terms { display: flex; gap: 3px; }
+.sh-terms i { font-style: normal; font-weight: 700; font-size: 10px; padding: 1px 4px; border-radius: 2px; color: #fff; background: #8a5a2b; }
+.sh-terms .t-n { background: #2f6fd6; }
+.sh-terms .t-pe { background: #7da30f; }
+.sh-pins { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 100%; padding: 0 3px; }
+.sh-pins u { width: 5px; height: 5px; border-radius: 50%; background: #8a6d3b; border: 1px solid #5a4422; }
+.sh-mod em { font-style: normal; font-size: 9.5px; color: #555; }
+.sh-wires .sh-wire { pointer-events: stroke; cursor: pointer; }
+.sh-wire-t { font: 600 10px var(--font-ui); fill: #333; paint-order: stroke; stroke: #e7e7e7; stroke-width: 3px; pointer-events: none; }
+
+/* ---------- konteksta izvēlne plānā ---------- */
+.ctx-menu { position: fixed; z-index: 60; min-width: 200px; max-width: 280px; padding: 4px 0; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); font: 13.5px var(--font-ui); }
+.ctx-menu .ctx-title { padding: 6px 12px 5px; font: 700 11px var(--font-ui); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid var(--line-2); margin-bottom: 3px; }
+.ctx-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; white-space: nowrap; }
+.ctx-menu button:hover, .ctx-menu button:focus-visible { background: #f4f4f4; outline: none; }
+.ctx-menu button.danger { color: var(--danger); }
+.ctx-menu hr { border: 0; border-top: 1px solid var(--line-2); margin: 4px 0; }
+.ctx-check { width: 12px; font-style: normal; font-weight: 700; color: var(--orange); }
+.props-sub { grid-column: 1 / -1; margin: 6px 0 0; font: 700 11px var(--font-ui); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+/* ---------- lietotāja bibliotēka kreisajā joslā ---------- */
+.fly-lib { display: flex; align-items: stretch; }
+.fly-lib .fly-row { flex: 1; min-width: 0; }
+.fly-count { font-style: normal; color: #9a9a9a; font-size: 12px; }
+.fly-del { flex: none; width: 34px; border: 0; background: none; color: #9a9a9a; font-size: 18px; cursor: pointer; }
+.fly-del:hover { color: #fff; background: #5a2b2b; }
+.fly-sec.static { cursor: default; }

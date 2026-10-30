@@ -271,3 +271,175 @@ test('slāņi: aktīvās lapas objekti rediģējami, citi fonā vai paslēpti', 
   assert.ok(custom.custom);
   assert.equal(layerMode(custom, 'sheet_x'), 'active');
 });
+
+test('grupas: grupēšana, kopija ar jaunu grupu, pagriešana un spoguļošana ap centru', async () => {
+  const m = await import('../js/model.js');
+  const f = newFloor();
+  const a = { id: 'a', kind: 'sofa', x: 0, y: 0, w: 200, d: 90, h: 80, rot: 0 };
+  const b = { id: 'b', kind: 'table', x: 200, y: 0, w: 100, d: 60, h: 75, rot: 0 };
+  f.items.push(a, b);
+  const g = m.groupItems([a, b]);
+  assert.equal(m.groupMembers(f, a).length, 2);
+  assert.ok(a.group === g && b.group === g);
+  const copies = m.cloneItems([a, b]);
+  assert.equal(copies[0].group, copies[1].group);
+  assert.notEqual(copies[0].group, g);
+  assert.notEqual(copies[0].id, 'a');
+  m.rotateItems([a, b], 90);
+  assert.deepEqual([a.x, a.y, b.x, b.y, a.rot], [100, -100, 100, 100, 90]);
+  m.mirrorItems([a, b]);
+  assert.equal(a.rot, 270);
+  assert.ok(a.mirror && b.mirror);
+  m.ungroupItems([a, b]);
+  assert.equal(m.groupMembers(f, a).length, 1);
+  // Vienam priekšmetam spoguļošana maina tikai simbolu
+  m.mirrorItems([a]);
+  assert.equal(a.mirror, false);
+});
+
+test('vairākatlase: dzēšana un kopējais saraksts', () => {
+  const store = new Store(newProject());
+  store.commit((f) => f.items.push({ id: 'x', kind: 'sofa', x: 0, y: 0, w: 10, d: 10, h: 10 }, { id: 'y', kind: 'sofa', x: 50, y: 0, w: 10, d: 10, h: 10 }, { id: 'z', kind: 'sofa', x: 90, y: 0, w: 10, d: 10, h: 10 }));
+  store.selectMany(['x', 'y']);
+  assert.deepEqual(store.selectedItems().map((i) => i.id), ['x', 'y']);
+  store.deleteSelected();
+  assert.deepEqual(store.floor.items.map((i) => i.id), ['z']);
+  assert.equal(store.multi.length, 0);
+});
+
+test('bibliotēka: ieraksts glabā relatīvas pozīcijas un novieto grupu jaunā vietā', async () => {
+  const m = await import('../js/model.js');
+  const items = [{ id: '1', kind: 'sofa', name: 'Dīvāns', x: 100, y: 100, w: 200, d: 90, h: 80, group: 'g' }, { id: '2', kind: 'table', x: 300, y: 100, w: 100, d: 60, h: 75, group: 'g' }];
+  const e = m.libraryEntry(items, 'Komplekts', 'furniture');
+  assert.equal(e.items.length, 2);
+  assert.deepEqual(e.items.map((i) => [i.dx, i.dy]), [[-100, 0], [100, 0]]);
+  assert.ok(!('id' in e.items[0]) && !('group' in e.items[0]));
+  const placed = m.itemsFromLibrary(e, { x: 1000, y: 500 }, 'furniture');
+  assert.deepEqual(placed.map((i) => [i.x, i.y]), [[900, 500], [1100, 500]]);
+  assert.equal(placed[0].group, placed[1].group);
+  assert.ok(placed[0].group);
+});
+
+test('ekrāna diagonāle un kameras redzes lauks', async () => {
+  const m = await import('../js/model.js');
+  const s = m.tvSize(55);
+  assert.equal(s.w, 121.8);
+  assert.equal(s.h, 68.5);
+  assert.equal(m.tvDiagonal(s.w), 55);
+  const sec = m.cameraSector({ x: 10, y: 20, rot: 90, viewAngle: 60, viewRadius: 4 });
+  assert.deepEqual(sec, { x: 10, y: 20, dir: 180, angle: 60, radius: 400 });
+});
+
+test('ūdens izvadi: noņemšana, secības maiņa, augstumi sienu skatā', async () => {
+  const m = await import('../js/model.js');
+  const it = { kind: 'cold_hot_water_sewerage' };
+  assert.deepEqual(m.waterOutputs(it), ['cold', 'hot', 'sewer']);
+  assert.ok(m.toggleWaterOutput(it, 'hot'));
+  assert.deepEqual(m.waterOutputs(it), ['cold', 'sewer']);
+  m.reverseWaterOutputs(it);
+  assert.deepEqual(m.waterOutputs(it), ['sewer', 'cold']);
+  assert.ok(m.toggleWaterOutput(it, 'hot'));
+  assert.deepEqual(m.waterOutputs(it), ['sewer', 'cold', 'hot']);
+  const two = { kind: 'hot_cold_water' };
+  assert.deepEqual(m.waterOutputs(two), ['cold', 'hot']);
+  assert.ok(m.toggleWaterOutput(two, 'cold'));
+  assert.equal(m.toggleWaterOutput(two, 'hot'), false, 'pēdējais izvads paliek');
+  const { waterPoints } = await import('../js/calc.js');
+  assert.equal(waterPoints([{ kind: 'cold_hot_water_sewerage' }, { kind: 'cold_water_outlet' }]), 4);
+});
+
+test('izmērs: garuma iestatīšana un sadalīšana daļās', async () => {
+  const m = await import('../js/model.js');
+  const d = { id: 'd', a: { x: 0, y: 0 }, b: { x: 300, y: 0 }, offset: 10, color: '#ff0000' };
+  m.setDimLength(d, 450);
+  assert.deepEqual(d.b, { x: 450, y: 0 });
+  const parts = m.splitDim(d, 3);
+  assert.equal(parts.length, 3);
+  assert.equal(parts[0].id, 'd');
+  assert.deepEqual(parts.map((p) => [p.a.x, p.b.x]), [[0, 150], [150, 300], [300, 450]]);
+  assert.ok(parts.every((p) => p.color === '#ff0000' && p.offset === 10));
+});
+
+test('grīdas segums: elementu skaits ar 10 % rezervi, ieklāšanas veidi bez spraugām', async () => {
+  const m = await import('../js/model.js');
+  assert.equal(m.tileCount(4e4, 60, 60, 0), Math.ceil((4e4 / 3600) * 1.1)); // 4 m² → 13
+  assert.equal(m.tileCount(120000, 120, 20, 0), 55); // 12 m² / 0,24 m² = 50 + 10 %
+  const room = [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 200 }, { x: 0, y: 200 }];
+  for (const [laying] of m.LAYINGS) {
+    const pcs = m.tilePieces(room, { L: 60, W: 15, laying, angle: 30 });
+    assert.ok(pcs.length > 20, laying);
+    for (let i = 0; i < 300; i++) {
+      const p = { x: 1 + ((i * 37) % 298), y: 1 + ((i * 53) % 198) };
+      const c = pcs.filter((q) => pointInPolygon(p, q)).length;
+      assert.equal(c, 1, `${laying}: punkts ${p.x},${p.y} pārklāts ${c} reizes`);
+    }
+  }
+  assert.equal(m.tilePieces(room, { L: 1, W: 1, max: 1000 }), null, 'pārāk daudz elementu');
+  const fd = { name: 'Lamināts', pattern: 'planks' };
+  assert.deepEqual(m.roomTiling({ tileAngle: 45 }, fd), { L: 120, W: 20, grout: 0, angle: 45, laying: 'deck3' });
+  assert.equal(m.floorTileDefaults({ name: 'Grīdas flīze 40×40', pattern: 'tiles' }).L, 40);
+  assert.equal(m.roomTiling({}, { name: 'Linolejs', pattern: 'plain' }), null);
+  const { roomTiles, finishSchedule } = await import('../js/calc.js');
+  const f = newFloor();
+  f.rooms.push({ id: 'r', name: 'Istaba', points: room, floorFinish: 'laminate', tileL: 100, tileW: 20 });
+  assert.equal(roomTiles(f.rooms[0]).count, Math.ceil((60000 / 2000) * 1.1));
+  assert.ok(finishSchedule(f).some((r) => r.group === 'floorPieces' && r.unit === 'gab.' && r.qty === 33));
+});
+
+test('elektrības punkti: vertikālā grupa skaitās, augstums no palodzes, attālumi līdz stūriem', async () => {
+  const m = await import('../js/model.js');
+  const { countPoints } = await import('../js/calc.js');
+  assert.equal(countPoints([{ kind: 'socket', vcount: 3 }, { kind: 'socket', count: 2 }, { kind: 'switch' }], 'socket'), 5);
+  const f = newFloor();
+  box(f, 0, 0, 400, 300, 20);
+  detectRooms(f);
+  f.openings.push(makeOpening('window', f.walls[0].id, 200, { width: 120, sill: 90 }));
+  const near = m.nearestWindow(f, { x: 260, y: 20 });
+  assert.equal(near.opening.sill, 90);
+  assert.equal(m.windowSillHeight(near.opening), 90);
+  assert.equal(m.nearestWindow(f, { x: 200, y: 280 }, 100), null);
+  const cd = m.cornerDistances(f, { x: 100, y: 15 });
+  assert.equal(Math.round(cd.da + cd.db), 380);
+  assert.deepEqual([Math.round(Math.min(cd.da, cd.db)), Math.round(Math.max(cd.da, cd.db))], [90, 290]);
+});
+
+test('sienu posmu apvienošana un līnijas sadalīšana', async () => {
+  const m = await import('../js/model.js');
+  const f = newFloor();
+  const w1 = makeWall({ x: 0, y: 0 }, { x: 200, y: 0 }, 20), w2 = makeWall({ x: 200, y: 0 }, { x: 500, y: 0 }, 20);
+  f.walls.push(w1, w2);
+  f.openings.push(makeOpening('door', w2.id, 100));
+  assert.ok(m.mergeWall(f, w1));
+  assert.equal(f.walls.length, 1);
+  assert.deepEqual([w1.a, w1.b], [{ x: 0, y: 0 }, { x: 500, y: 0 }]);
+  assert.equal(f.openings[0].wallId, w1.id);
+  assert.equal(Math.round(f.openings[0].pos), 300);
+  const [l1, l2] = m.splitLine({ id: 'l', type: 'cable', points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] });
+  assert.deepEqual(l1.points.at(-1), { x: 100, y: 0 });
+  assert.deepEqual(l2.points[0], { x: 100, y: 0 });
+  assert.notEqual(l1.id, l2.id);
+});
+
+test('sienu skati: vērtnes, balkona durvju konfigurācija, arka, vertikālā grupa un ūdens caurules', () => {
+  const f = newFloor();
+  box(f, 0, 0, 500, 400, 20);
+  detectRooms(f);
+  f.openings.push(makeOpening('window', f.walls[0].id, 150, { width: 150, casements: 3, sillThick: 4, sillOver: 5 }));
+  f.openings.push(makeOpening('door', f.walls[0].id, 380, { variant: 'balcony', config: 'sandwich', mullion: 100 }));
+  f.openings.push(makeOpening('door', f.walls[2].id, 250, { arched: true, trims: true }));
+  f.items.push({ id: 's', kind: 'socket', x: 100, y: 390 - 10, w: 8, d: 6, h: 8, elev: 30, rot: 0, vcount: 3 });
+  f.items.push({ id: 'w', kind: 'cold_hot_water_sewerage', x: 300, y: 380, w: 26, d: 8, h: 12, elev: 60, rot: 0, pipeH: 70, sewerH: 45 });
+  const els = roomElevations(f, f.rooms[0]);
+  const all = els.flatMap((e) => e.openings);
+  const win = all.find((o) => o.type === 'window');
+  assert.equal(win.casements, 3);
+  assert.equal(all.find((o) => o.variant === 'balcony').config, 'sandwich');
+  const svg = els.map((e) => elevationSVG(e)).join('');
+  assert.ok(svg.includes('stroke-width="3"'), 'imposte');
+  assert.ok(svg.includes(' Q'), 'arka');
+  const items = els.flatMap((e) => e.items);
+  assert.equal(items.find((i) => i.vcount === 3).vcount, 3);
+  const water = items.find((i) => i.pipes);
+  assert.deepEqual(water.pipes.map((p) => [p.k, p.y]), [['cold', 70], ['hot', 70], ['sewer', 45]]);
+  assert.ok(svg.includes('h=45'));
+});
