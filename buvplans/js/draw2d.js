@@ -285,6 +285,42 @@ function drawWaterGroup(ctx, it) {
 /**
  * Zīmē stāvu. `view` = { scale (px uz cm), ox, oy }, `opts` = { stage, grid, dims, units, show, selection, hover, faceHover, width, height }.
  */
+/**
+ * Sienas kontūra kā daudzstūris. Stūrī, kur satiekas tieši divas sienas, malas tiek salaistas
+ * slīpi (pa leņķa bisektrisi), lai pie jebkura leņķa nebūtu izvirzītu stūru. Brīvos galos un
+ * krustojumos gals tiek pagarināts par pusbiezumu, kā līdz šim.
+ */
+export function wallPolygon(w, walls) {
+  const L = Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y) || 1;
+  const dir = { x: (w.b.x - w.a.x) / L, y: (w.b.y - w.a.y) / L }, n = { x: -dir.y, y: dir.x }, h = w.thickness / 2;
+  const corner = (end, side) => {
+    const E = w[end], d = end === 'b' ? dir : { x: -dir.x, y: -dir.y };
+    const sv = { x: n.x * side, y: n.y * side };
+    const P1 = { x: E.x + sv.x * h, y: E.y + sv.y * h };
+    const square = { x: P1.x + d.x * h, y: P1.y + d.y * h };
+    const others = walls.filter((o) => o !== w && (Math.hypot(o.a.x - E.x, o.a.y - E.y) < 0.5 || Math.hypot(o.b.x - E.x, o.b.y - E.y) < 0.5));
+    if (!others.length) return square;
+    // Turpinājums: siena, kas vistaisnāk turpina šo (krustojumā pārējās ir pieslēgtas sienas)
+    const cand = others.map((o) => {
+      const far = Math.hypot(o.a.x - E.x, o.a.y - E.y) < 0.5 ? o.b : o.a, lo = Math.hypot(far.x - E.x, far.y - E.y) || 1;
+      const e2 = { x: (far.x - E.x) / lo, y: (far.y - E.y) / lo };
+      return { o, e2, straight: d.x * e2.x + d.y * e2.y };
+    }).sort((p, q) => q.straight - p.straight);
+    if (others.length > 1 && cand[0].straight < 0.5) return square;
+    const { o, e2 } = cand[0];
+    // Ceļa „kreisā” puse turpinās no mūsu sienas otrā sienā
+    const pathLeft = { x: -d.y, y: d.x }, sign = sv.x * pathLeft.x + sv.y * pathLeft.y > 0 ? 1 : -1;
+    const left2 = { x: -e2.y * sign, y: e2.x * sign }, ho = o.thickness / 2;
+    const P2 = { x: E.x + left2.x * ho, y: E.y + left2.y * ho };
+    const den = d.x * e2.y - d.y * e2.x;
+    if (Math.abs(den) < 1e-6) return P1;
+    const tt = ((P2.x - P1.x) * e2.y - (P2.y - P1.y) * e2.x) / den;
+    const X = { x: P1.x + d.x * tt, y: P1.y + d.y * tt };
+    return Math.hypot(X.x - P1.x, X.y - P1.y) > 6 * Math.max(h, ho) ? square : X;
+  };
+  return [corner('a', 1), corner('b', 1), corner('b', -1), corner('a', -1)];
+}
+
 export function drawFloor(ctx, floor, view, t, opts = {}) {
   const { scale, ox, oy } = view;
   const S = (p) => ({ x: p.x * scale + ox, y: p.y * scale + oy });
@@ -365,25 +401,28 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     ctx.stroke();
     ctx.setLineDash([]);
   }
-  ctx.lineCap = 'square';
+  // Sienu kontūras: daudzstūri ar slīpi salaistiem stūriem (bez „radziņiem” pie ne-90° leņķiem)
+  const solid = walls.map((x) => x.w);
+  const polyOf = new Map(walls.map(({ w }) => [w.id, wallPolygon(w, solid).map(S)]));
+  ctx.lineJoin = 'miter';
   for (const { w, mode } of walls) {
-    seg(w);
-    ctx.lineWidth = w.thickness * scale + 1.6;
-    ctx.strokeStyle = mode === 'demolish' ? t.demolish : t.line;
+    pathPoly(ctx, polyOf.get(w.id));
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = ctx.fillStyle = mode === 'demolish' ? t.demolish : t.line;
+    ctx.fill();
     ctx.stroke();
   }
   const order = { partition: 0, balcony: 0, new: 1, bearing: 2, demolish: 3 };
   const fillKind = ({ w, mode }) => (mode === 'demolish' ? 'demolish' : mode === 'new' ? 'new' : wallKind(w));
   for (const x of [...walls].sort((p, q) => (order[fillKind(p)] ?? 1) - (order[fillKind(q)] ?? 1))) {
     const k = fillKind(x);
-    seg(x.w);
-    ctx.lineWidth = Math.max(0.5, x.w.thickness * scale - 1.4);
+    pathPoly(ctx, polyOf.get(x.w.id));
     const mat = wallMaterial(x.w.material);
-    ctx.strokeStyle = k === 'demolish' ? hatch(ctx, t.demolish, '#fff4f3') : WALL_COLORS[x.w.color] || (mat ? materialPattern(ctx, mat)
+    ctx.fillStyle = k === 'demolish' ? hatch(ctx, t.demolish, '#fff4f3') : WALL_COLORS[x.w.color] || (mat ? materialPattern(ctx, mat)
       : k === 'bearing' ? hatch(ctx, t.hatch, t.bg) : k === 'new' ? t.newFill : t.bg);
-    ctx.stroke();
+    ctx.fill();
   }
-  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
 
   // Sienu virsmu apdare (krāsa, flīzes, izolācija, apmetums, hidroizolācija)
   const faceTarget = stage?.faces || (!stage && show.finishing ? 'wall' : null);
