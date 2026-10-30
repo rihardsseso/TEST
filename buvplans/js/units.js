@@ -10,7 +10,7 @@ const UNITS = {
 };
 const u = (units) => UNITS[units] || UNITS.cm;
 
-export const unitName = (units) => (UNITS[units] ? units : 'cm');
+export const unitName = (units) => (units === 'in' ? 'collas' : UNITS[units] ? units : 'cm');
 export const toUnit = (cm, units) => cm * u(units).k;
 export const fromUnit = (v, units) => v / u(units).k;
 export const unitStep = (units) => u(units).step;
