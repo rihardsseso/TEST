@@ -213,14 +213,83 @@ export class Editor2D {
     return [[[0, -1], 0, -R], [[0, 1], 0, R], [[-1, 0], -R, 0], [[1, 0], R, 0]].map(([dir, dx, dy]) => ({ dir, x: c.x + dx, y: c.y + dy }));
   }
 
+  /**
+   * Leņķis atlasītajā sienas punktā: starp atlasīto sienu un blakus sienu (vai pret horizontāli, ja blakus sienas nav).
+   * `other` — atlasītās sienas otrs gals (ap to siena griežas, mainot leņķi).
+   */
+  jointAngle(j = this.jointSel) {
+    const w = this.store.selection?.kind === 'walls' ? this.store.selected() : null;
+    if (!j || !w) return null;
+    const atA = dist(w.a, j) < 0.01;
+    if (!atA && dist(w.b, j) >= 0.01) return null;
+    const other = atA ? w.b : w.a;
+    const u = sub(other, j);
+    const angleTo = (v) => (Math.acos(Math.max(-1, Math.min(1, (u.x * v.x + u.y * v.y) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y) || 1)))) * 180) / Math.PI;
+    const nbs = this.floor.walls.filter((x) => x !== w && x.kind !== 'virtual' && (dist(x.a, j) < 0.01 || dist(x.b, j) < 0.01))
+      .map((x) => angleTo(sub(dist(x.a, j) < 0.01 ? x.b : x.a, j)));
+    if (nbs.length) return { deg: Math.min(...nbs), other, between: true };
+    const h = ((Math.atan2(-u.y, u.x) * 180) / Math.PI + 360) % 180;
+    return { deg: h, other, between: false };
+  }
+
+  /** Leņķa birka ar −/+ pogām (griež sienu ap otru galu pa 0,1°). */
+  jointAngleWidget() {
+    if (!this.jointArrows().length) return null;
+    const a = this.jointAngle();
+    if (!a) return null;
+    const c = this.toScreen(this.jointSel), L = { x: c.x + 78, y: c.y + 58 };
+    return { ...a, L, minus: { x: L.x - 48, y: L.y }, plus: { x: L.x + 48, y: L.y } };
+  }
+
   jointArrowAt(sx, sy) {
+    const wdg = this.jointAngleWidget();
+    if (wdg) {
+      if (Math.hypot(wdg.minus.x - sx, wdg.minus.y - sy) <= 12) return { rot: -0.1 };
+      if (Math.hypot(wdg.plus.x - sx, wdg.plus.y - sy) <= 12) return { rot: 0.1 };
+    }
     return this.jointArrows().find((a) => Math.hypot(a.x - sx, a.y - sy) <= 13)?.dir || null;
+  }
+
+  /** Maina leņķi sienas punktā par `delta` grādiem, griežot atlasīto sienu ap tās otru galu. */
+  rotateJoint(delta) {
+    const j = this.jointSel, cur = this.jointAngle();
+    if (!j || !cur) return;
+    const turn = (deg) => {
+      const r = (deg * Math.PI) / 180, v = sub(j, cur.other);
+      return { x: cur.other.x + v.x * Math.cos(r) - v.y * Math.sin(r), y: cur.other.y + v.x * Math.sin(r) + v.y * Math.cos(r) };
+    };
+    // Izvēlas griešanas virzienu tā, lai rādītais leņķis mainītos par +delta (vai −delta)
+    let to = turn(Math.abs(delta));
+    if (this.angleAfter(to) > cur.deg !== delta > 0) to = turn(-Math.abs(delta));
+    this.store.commit((f) => {
+      const before = snapshotWalls(f);
+      moveJoint(f, j, to);
+      followHosts(f, before);
+      rebuildRooms(f);
+    });
+    this.jointSel = to;
+    const now = this.jointAngle();
+    this.status(`Leņķis: ${String(now ? now.deg.toFixed(1) : '').replace('.', ',')}°`);
+    this.requestRender();
+  }
+
+  /** Leņķis, kāds būtu, ja atlasītās sienas punktu pārvietotu uz `to` (citas sienas paliek). */
+  angleAfter(to) {
+    const j = this.jointSel, cur = this.jointAngle();
+    const u = sub(cur.other, to);
+    const angleTo = (v) => (Math.acos(Math.max(-1, Math.min(1, (u.x * v.x + u.y * v.y) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y) || 1)))) * 180) / Math.PI;
+    const w = this.store.selected();
+    const nbs = this.floor.walls.filter((x) => x !== w && x.kind !== 'virtual' && (dist(x.a, j) < 0.01 || dist(x.b, j) < 0.01))
+      .map((x) => angleTo(sub(dist(x.a, j) < 0.01 ? x.b : x.a, to)));
+    if (nbs.length) return Math.min(...nbs);
+    return ((Math.atan2(-u.y, u.x) * 180) / Math.PI + 360) % 180;
   }
 
   /** Pabīda atlasīto sienas punktu par vienu mērvienības iedaļu. */
   nudgeJoint(dir) {
     const j = this.jointSel;
     if (!j) return;
+    if (dir.rot) return this.rotateJoint(dir.rot);
     const d = unitDivision(this.settings.units);
     const to = { x: j.x + dir[0] * d, y: j.y + dir[1] * d };
     this.store.commit((f) => {
@@ -230,7 +299,8 @@ export class Editor2D {
       rebuildRooms(f);
     });
     this.jointSel = to;
-    this.status(`Sienas punkts pabīdīts par ${fmtNum(d, this.settings.units)} ${unitName(this.settings.units)}.`);
+    const ang = this.jointAngle();
+    this.status(`Sienas punkts pabīdīts par ${fmtNum(d, this.settings.units)} ${unitName(this.settings.units)}${ang ? ` · leņķis ${ang.deg.toFixed(1).replace('.', ',')}°` : ''}.`);
     this.requestRender();
   }
 
@@ -254,6 +324,36 @@ export class Editor2D {
       ctx.closePath();
       ctx.fillStyle = t.accent;
       ctx.fill();
+      ctx.restore();
+    }
+    const wdg = this.jointAngleWidget();
+    if (wdg) {
+      // Leņķa birka pie stūra punkta ar −/+ (0,1°) pogām
+      const text = `${wdg.deg.toFixed(1).replace('.', ',')}°`;
+      ctx.save();
+      ctx.font = `700 13px ${t.font}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const bw = Math.max(54, ctx.measureText(text).width + 16);
+      ctx.beginPath();
+      ctx.roundRect(wdg.L.x - bw / 2, wdg.L.y - 12, bw, 24, 12);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = t.accent;
+      ctx.stroke();
+      ctx.fillStyle = t.ink;
+      ctx.fillText(text, wdg.L.x, wdg.L.y + 0.5);
+      for (const [b, sign] of [[wdg.minus, '−'], [wdg.plus, '+']]) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 11, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = t.accent;
+        ctx.font = `700 16px ${t.font}`;
+        ctx.fillText(sign, b.x, b.y + 0.5);
+      }
       ctx.restore();
     }
     const S = (p) => this.toScreen(p);
@@ -1324,6 +1424,10 @@ export class Editor2D {
       const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k];
       if (dir) {
         this.nudgeJoint(dir);
+        return true;
+      }
+      if (k === '+' || k === '=' || k === '-') {
+        this.rotateJoint(k === '-' ? -0.1 : 0.1);
         return true;
       }
     }
