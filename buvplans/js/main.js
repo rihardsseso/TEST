@@ -191,6 +191,7 @@ function setStage(id) {
   stage = stageById(id, sheets());
   storage.setPref('stage', stage.id);
   $$('#stageTabs .stage-tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.stage === stage.id)));
+  if (!$('#showPop').hidden) renderShow();
   $(`#stageTabs [data-stage="${stage.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   editor.setStage(stage);
   closeFloating();
@@ -828,9 +829,26 @@ $('#settingsBtn').addEventListener('click', () => togglePop('#settingsPop', rend
 const SHOW_LABELS = [['wallDims', 'Sienu izmēri'], ['extDims', 'Ārējie izmēri'], ['userDims', 'Papildu izmēri'], ['itemDims', 'Priekšmetu izmēri'], ['heights', 'Augstumi'],
   ['roomNumbers', 'Telpu numuri'], ['areas', 'Laukumi'], ['furniture', 'Mēbeles'], ['outlets', 'Rozetes un slēdži'], ['finishing', 'Apdare'], ['water', 'Ūdensapgāde'],
   ['linear', 'Lineārais apgaismojums'], ['lighting', 'Apgaismojums'], ['ac', 'Kondicionēšana un ventilācija'], ['wireLengths', 'Vadu garumi'], ['comments', 'Komentāri']];
+// Plāni, kurus pamatplānā (un demontāžā, starpsienās) var ieslēgt fonā
+const BASE_LAYERS = ['radiators', 'furniture', 'santeh', 'waterplan', 'sockets', 'light_connections', 'light', 'cables', 'warm_floor', 'conditioners', 'ventilation', 'security'];
 function renderShow() {
-  const sh = editor.settings.show;
-  $('#showPop').innerHTML = panelHead('Rādīt/slēpt elementus', 'showPop') + `<div class="props-body show-list">${SHOW_LABELS.map(([k, n]) => `<label class="check"><input type="checkbox" data-show="${k}" ${sh[k] ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div>`;
+  const sh = editor.settings.show, bs = editor.settings.baseShow || {};
+  const base = stage.build ? `<h4>Citi plāni lapā „${esc(stage.name)}”</h4><div class="row col-tight">
+      <button type="button" class="btn small" data-base-all="1">Ieslēgt visus</button><button type="button" class="btn small" data-base-all="0">Izslēgt visus</button></div>
+    ${BASE_LAYERS.map((id) => `<label class="check"><input type="checkbox" data-base="${id}" ${bs[id] ? 'checked' : ''}><span>${esc(stageById(id).name)}</span></label>`).join('')}<h4>Elementi</h4>` : '';
+  $('#showPop').innerHTML = panelHead('Rādīt/slēpt elementus', 'showPop') + `<div class="props-body show-list">${base}${SHOW_LABELS.map(([k, n]) => `<label class="check"><input type="checkbox" data-show="${k}" ${sh[k] ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div>`;
+  const setBase = (id, on) => { editor.settings.baseShow = { ...(editor.settings.baseShow || {}), [id]: on }; };
+  $$('[data-base]', $('#showPop')).forEach((i) => i.addEventListener('change', () => {
+    setBase(i.dataset.base, i.checked);
+    saveSettings();
+    editor.requestRender();
+  }));
+  $$('[data-base-all]', $('#showPop')).forEach((b) => b.addEventListener('click', () => {
+    BASE_LAYERS.forEach((id) => setBase(id, b.dataset.baseAll === '1'));
+    saveSettings();
+    renderShow();
+    editor.requestRender();
+  }));
   $$('[data-show]', $('#showPop')).forEach((i) => i.addEventListener('change', () => {
     editor.settings.show[i.dataset.show] = i.checked;
     saveSettings();

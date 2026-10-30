@@ -293,6 +293,12 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   const sel = opts.selection, hov = opts.hover;
   const isSel = (kind, id) => sel && sel.kind === kind && sel.id === id;
   const isHov = (kind, id) => hov && hov.kind === kind && hov.id === id;
+  // Pamatplānā (būvniecības lapās) citus plānus var ieslēgt fonā ar „Rādīt/slēpt elementus”
+  const baseShow = opts.baseShow || {};
+  const layerModeOf = (layer) => {
+    const m = layerMode(stage, layer);
+    return m === 'hidden' && stage?.build && baseShow[layer] ? 'faded' : m;
+  };
   const hiddenByShow = (layer) => Object.entries(SHOW_LAYERS).some(([k, layers]) => !show[k] && layers.includes(layer) && layer !== stage?.id);
 
   ctx.fillStyle = t.bg;
@@ -312,7 +318,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   }
   if (opts.grid) drawGrid(ctx, view, W, H, t);
 
-  const zones = (floor.zones || []).map((z) => ({ z, mode: layerMode(stage, z.layer || 'init') })).filter((x) => x.mode !== 'hidden');
+  const zones = (floor.zones || []).map((z) => ({ z, mode: layerModeOf(z.layer || 'init') })).filter((x) => x.mode !== 'hidden');
   // Zemes gabals un terase — zem visa pārējā
   for (const { z, mode } of zones.filter((x) => x.z.type === 'plot' || x.z.type === 'terrace')) drawZone(ctx, z, mode, S, t, isSel('zones', z.id) || isHov('zones', z.id), opts.units);
 
@@ -429,14 +435,14 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
 
   // Līnijas: caurules, kabeļi, gaisa vadi, sijas, margas
   for (const ln of floor.lines || []) {
-    const mode = layerMode(stage, ln.layer || 'init');
+    const mode = layerModeOf(ln.layer || 'init');
     if (mode === 'hidden' || ln.points.length < 2 || hiddenByShow(ln.layer)) continue;
     if (!show.linear && (ln.type === 'linear' || ln.type === 'led')) continue;
     drawLine(ctx, ln, mode, S, scale, t, isSel('lines', ln.id) || isHov('lines', ln.id), show.wireLengths, opts.units);
   }
 
   // Priekšmeti
-  const items = floor.items.map((it) => ({ it, mode: layerMode(stage, categoryOf(it)) }))
+  const items = floor.items.map((it) => ({ it, mode: layerModeOf(categoryOf(it)) }))
     .filter((x) => x.mode !== 'hidden' && !hiddenByShow(categoryOf(x.it)) && !(x.it.status === 'demolish' && stage && !early));
   items.sort((a, b) => (a.mode === 'faded' ? 0 : 1) - (b.mode === 'faded' ? 0 : 1));
   // Kameru redzes lauki — zem priekšmetiem

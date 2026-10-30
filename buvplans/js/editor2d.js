@@ -198,7 +198,7 @@ export class Editor2D {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(ctx, this.floor, this.view, this.theme, {
       stage: this.stage, width: this.w, height: this.h, grid: this.settings.grid, dims: this.settings.dims, units: this.settings.units,
-      show: this.settings.show, selection: this.store.selection, hover: this.hover, faceHover: this.state.faceHover, onImage: () => this.requestRender(),
+      show: this.settings.show, baseShow: this.settings.baseShow, selection: this.store.selection, hover: this.hover, faceHover: this.state.faceHover, onImage: () => this.requestRender(),
       multi: new Set(this.store.multi || []),
     });
     this.drawPreview(ctx);
