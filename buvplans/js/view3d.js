@@ -13,6 +13,8 @@ export class View3D {
     this.container = container;
     this.store = store;
     this.options = { allFloors: false, cutWalls: false, shadows: true };
+    // Ko rādīt 3D: elementu grupas (ieslēdz/izslēdz panelī)
+    this.layers = { floors: true, walls: true, openings: true, furniture: true, santeh: true, radiators: true, light: true, electric: true, other: true };
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
@@ -135,7 +137,7 @@ export class View3D {
     };
     // Grīdas
     for (const r of f.rooms) {
-      if (r.points.length < 3) continue;
+      if (r.points.length < 3 || !this.layers.floors) continue;
       const shape = new THREE.Shape(r.points.map((q) => new THREE.Vector2(q.x * U, -q.y * U)));
       const geo = new THREE.ShapeGeometry(shape);
       geo.rotateX(-Math.PI / 2);
@@ -151,6 +153,10 @@ export class View3D {
     for (const w of f.walls) {
       const L = wallLength(w);
       if (L < 1 || w.status === 'demolish' || w.kind === 'virtual') continue;
+      if (!this.layers.walls) {
+        if (this.layers.openings) for (const o of f.openings.filter((q) => q.wallId === w.id)) this.addOpening(g, w, o, mat, wallH(w));
+        continue;
+      }
       const H = wallH(w);
       const color = wallColor(f, w);
       const ops = f.openings.filter((o) => o.wallId === w.id).sort((a, b) => a.pos - b.pos);
@@ -163,7 +169,7 @@ export class View3D {
         const top = o.sill + o.height;
         if (top < H) pieces.push([s, e, top, H]);
         x = Math.max(x, e);
-        this.addOpening(g, w, o, mat, H);
+        if (this.layers.openings) this.addOpening(g, w, o, mat, H);
       }
       if (x < L + w.thickness / 2) pieces.push([x, L + w.thickness / 2, 0, H]);
       const d = wallDir(w), ang = Math.atan2(d.y, d.x);
@@ -183,6 +189,7 @@ export class View3D {
     for (const it of f.items) {
       const def = byKind(it.kind);
       if (!def || it.status === 'demolish') continue;
+      if (!this.layers[layer3D(it, def)]) continue;
       if (this.options.cutWalls && def.electric === 'light') continue;
       const ig = new THREE.Group();
       for (const [px, py, pz, pw, ph, pd, tone, shape, flag] of parts3D(it)) {
@@ -388,4 +395,15 @@ function dimension3D(dm) {
   sp.position.set(((A.x + B.x) / 2) * U, 0.25, ((A.y + B.y) / 2) * U);
   grp.add(sp);
   return grp;
+}
+
+/** Priekšmeta grupa 3D slēdžiem. */
+function layer3D(it, def) {
+  const st = it.layer || def.stage;
+  if (st === 'furniture') return 'furniture';
+  if (st === 'santeh' || st === 'waterplan') return 'santeh';
+  if (st === 'radiators' || st === 'warm_floor') return 'radiators';
+  if (st === 'light' || def.electric === 'light') return 'light';
+  if (['sockets', 'light_connections', 'cables', 'shield'].includes(st) || def.electric) return 'electric';
+  return 'other';
 }

@@ -950,3 +950,6 @@ table.data tbody tr:hover { background: rgba(245, 202, 195, 0.35); }
 .ai-images img, .ai-out img { width: 100%; border: 1px solid var(--line); background: var(--p-cream); }
 .ai-out { min-height: 200px; display: grid; gap: 8px; align-content: start; }
 @media (max-width: 860px) { .ai-grid, .ai-images { grid-template-columns: 1fr; } }
+
+.view3d-layers .dd-menu { padding: 8px 12px; display: grid; gap: 6px; min-width: 190px; left: 0; right: auto; }
+.view3d-layers .check { grid-column: auto; white-space: nowrap; }

@@ -80,6 +80,7 @@ async function ensure3D() {
     const { View3D } = await import('./view3d.js');
     view3d = new View3D($('#scene'), store);
     view3d.setTheme(false);
+    Object.assign(view3d.layers, storage.getPref('layers3d', {}));
   } catch (err) {
     $('#scene').innerHTML = `<p class="empty">3D skatu neizdevās ielādēt: ${esc(err.message)}. Pārbaudi interneta savienojumu un WebGL atbalstu.</p>`;
   }
@@ -1227,6 +1228,15 @@ $$('#view3dOpts input').forEach((i) => i.addEventListener('change', async () => 
   v.options[i.dataset.opt] = i.checked;
   v.rebuild(i.dataset.opt === 'allFloors');
 }));
+$('#layers3dBtn').addEventListener('click', (e) => { e.stopPropagation(); $('#layers3dMenu').hidden = !$('#layers3dMenu').hidden; });
+$$('[data-layer3d]').forEach((i) => i.addEventListener('change', async () => {
+  const v = await ensure3D();
+  if (!v) return;
+  v.layers[i.dataset.layer3d] = i.checked;
+  storage.setPref('layers3d', v.layers);
+  v.rebuild(false);
+}));
+$$('[data-layer3d]').forEach((i) => { i.checked = storage.getPref('layers3d', {})[i.dataset.layer3d] !== false; });
 $('#view3dReset').addEventListener('click', async () => (await ensure3D())?.rebuild(true));
 $('#view3dShot').addEventListener('click', async () => {
   const v = await ensure3D();
