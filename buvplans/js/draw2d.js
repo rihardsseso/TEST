@@ -11,8 +11,8 @@ import { unitName } from './units.js';
 
 export const THEME = {
   bg: '#ffffff', grid: '#eef0f2', gridMajor: '#d9dde1', ink: '#222222', muted: '#555555', line: '#2b2b2b',
-  hatch: '#6f6f6f', newFill: '#dcdcdc', demolish: '#d93025', accent: '#f08c00', accentSoft: 'rgba(240,140,0,0.16)',
-  glass: '#ffffff', dim: '#333333', label: '#e0312b', itemStroke: '#3a3a3a', wire: '#d93025',
+  hatch: '#6f6f6f', newFill: '#dcdcdc', demolish: '#d93025', accent: '#f28482', accentSoft: 'rgba(242,132,130,0.18)',
+  glass: '#ffffff', dim: '#333333', label: '#d9605e', itemStroke: '#3a3a3a', wire: '#d93025',
   font: '"Exo 2", Arial, sans-serif', mono: '"Exo 2", Arial, sans-serif',
 };
 export const readTheme = () => THEME;

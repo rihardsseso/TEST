@@ -217,7 +217,7 @@ export function createShield({ store, toast }) {
       if (!a || !b) return '';
       const dy = 14 + (i % 4) * 6, sw = 1.5 + Math.sqrt(w.section ?? 2.5) * 0.9, sel = selected?.wire === w.id;
       const d = `M${a.x} ${a.y} V${a.y + dy} H${b.x} V${b.y}`;
-      return `<g class="sh-wire ${sel ? 'sel' : ''}" data-wire="${w.id}"><path d="${d}" fill="none" stroke="transparent" stroke-width="12"/>${sel ? `<path d="${d}" fill="none" stroke="#f08c00" stroke-width="${sw + 4}" stroke-linejoin="round" opacity="0.5"/>` : ''}<path d="${d}" fill="none" stroke="${w.color}" stroke-width="${sw}" stroke-linejoin="round"/>
+      return `<g class="sh-wire ${sel ? 'sel' : ''}" data-wire="${w.id}"><path d="${d}" fill="none" stroke="transparent" stroke-width="12"/>${sel ? `<path d="${d}" fill="none" stroke="#f28482" stroke-width="${sw + 4}" stroke-linejoin="round" opacity="0.5"/>` : ''}<path d="${d}" fill="none" stroke="${w.color}" stroke-width="${sw}" stroke-linejoin="round"/>
         <text x="${(a.x + b.x) / 2}" y="${a.y + dy - 3}" class="sh-wire-t" text-anchor="middle">${csText(w.section ?? 2.5)}</text></g>`;
     }).join('');
     $$('[data-wire]', svg).forEach((g) => g.addEventListener('click', (e) => {
