@@ -42,15 +42,33 @@ export const GENERATORS = [
     id: 'openai', name: 'OpenAI (GPT Image)', keyUrl: 'https://platform.openai.com/api-keys',
     note: 'Rediģē 3D attēlu pēc apraksta. Vajag OpenAI API atslēgu.',
     async api(image, prompt, key) {
-      const fd = new FormData();
-      fd.append('model', 'gpt-image-1');
-      fd.append('image', await blobOf(image), 'skats.png');
-      fd.append('prompt', prompt);
-      fd.append('size', '1536x1024');
-      const r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd });
-      if (!r.ok) throw new Error(await failText(r));
-      const j = await r.json();
-      return `data:image/png;base64,${j.data[0].b64_json}`;
+      // Modeļu nosaukumi mainās; vispirms noskaidro, kuri attēlu modeļi šai atslēgai pieejami
+      let models = [];
+      try {
+        const lr = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` } });
+        if (lr.ok) models = (await lr.json()).data.map((m) => m.id);
+      } catch { /* turpina ar zināmo sarakstu */ }
+      const prefer = ['gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini', 'chatgpt-image-latest', 'dall-e-2'];
+      const avail = models.filter((id) => /gpt-image|chatgpt-image|dall-e-2/.test(id));
+      const order = [...prefer.filter((m) => !models.length || avail.includes(m)), ...avail.filter((m) => !prefer.includes(m))];
+      let last = '';
+      for (const model of order) {
+        const fd = new FormData();
+        fd.append('model', model);
+        fd.append('image', await blobOf(image), 'skats.png');
+        fd.append('prompt', prompt);
+        fd.append('size', model === 'dall-e-2' ? '1024x1024' : '1536x1024');
+        if (model === 'dall-e-2') fd.append('response_format', 'b64_json');
+        const r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd });
+        if (r.ok) {
+          const j = await r.json();
+          return `data:image/png;base64,${j.data[0].b64_json}`;
+        }
+        last = await failText(r);
+        // Ja modelis neeksistē vai nav pieejams šim kontam — mēģina nākamo
+        if (!/does not exist|not found|model|verif|access/i.test(last) || r.status === 401) break;
+      }
+      throw new Error(`${last}${/verif/i.test(last) ? ' — OpenAI prasa verificēt organizāciju (platform.openai.com → Settings → Organization → Verify).' : ''}`);
     },
   },
   {
