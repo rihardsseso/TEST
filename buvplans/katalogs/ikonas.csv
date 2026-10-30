@@ -1,0 +1,156 @@
+acIndoor,1,Kondicionēšana: Iekšējie bloki
+acOutdoor,1,Kondicionēšana: Ārējie bloki
+acPipes,1,Kondicionēšana: Kondicioniera caurules un vadi
+alarm,1,Drošība: Signalizācijas panelis
+appliances,2,Mēbeles: Sadzīves tehnika · Santehnika: Sadzīves tehnika
+balcony,1,Pamatplāns: Zīmēt balkonu
+baseboard,1,Grīdas segumi: Grīdlīstes
+bath,1,Santehnika: Vannas
+beam,1,Pamatplāns: Griestu sija
+bed,1,Griesti: Iebūvēts griestu stiprinājums
+bondingBox,1,Elektroinstalācija: Potenciālu izlīdzināšanas kārba
+breaker,1,Sadales skapis: Automātslēdži
+busbar,1,Sadales skapis: Kopne
+busbarN,1,Sadales skapis: Neitrāles kopne
+cabinet,1,Santehnika: Vannas istabas mēbeles
+cable,3,Slēdži: Savienojuma kabelis · Elektroinstalācija: Citi kabeļi · Siltās grīdas: Savienojuma kabelis
+cable2,1,Elektroinstalācija: Divdzīslu kabeļi
+cable3,1,Elektroinstalācija: Trīsdzīslu kabeļi
+cable4,1,Elektroinstalācija: Četrdzīslu kabeļi
+cable5,1,Elektroinstalācija: Piecdzīslu kabeļi
+cableLow,1,Elektroinstalācija: Vājstrāvas kabeļi
+camera,1,Drošība: Novērošanas kameras
+car,1,Mēbeles: Autoserviss
+carpet,1,Grīdas segumi: Citi segumi
+cart,1,Mēbeles: Tirdzniecības aprīkojums
+ceiling,1,Griesti: Pievienot apdari
+ceiling2,1,Griesti: Divlīmeņu griesti
+ceilingLight,1,Apgaismojums: Griestu gaismekļi
+chandelier,1,Apgaismojums: Griestu lustras
+closet,1,Mēbeles: Garderobe un priekšnams
+column,1,Pamatplāns: Kolonna
+convectorElectric,1,Apkure: Elektriskais konvektors
+convectorTrench,2,Apkure: Grīdā iebūvēts konvektors · Apkure: Grīdas konvektors
+crib,1,Mēbeles: Bērnistabas mēbeles
+curtain,1,Griesti: Aizkaru niša
+demolish,1,Demontāža: Demontēt sienu
+demolishDoor,1,Demontāža: Demontēt aili
+demolishPanel,1,Demontāža: Demontēt elektrības sadalni
+demolishPart,1,Demontāža: Demontēt sienas posmu
+demolishRad,1,Demontāža: Demontēt radiatoru
+dimmer,1,Slēdži: Dimmeris
+din,1,Sadales skapis: Pievienot DIN sliedi
+door,2,Pamatplāns: Durvis un ailes · Starpsienas: Durvis un ailes
+drain,1,Kondicionēšana: Drenāžas cauruļvads
+dropBlue,5,Pamatplāns › Inženierkomunikācijas: Aukstā ūdens stāvvads · Starpsienas › Inženierkomunikācijas: Aukstā ūdens stāvvads · Ūdensapgāde: Aukstā ūdens izvads · Ūdensapgāde: Karstais + aukstais ūdens · Ūdensapgāde: Aukstais ūdens + kanalizācija
+dropBrown,3,Pamatplāns › Inženierkomunikācijas: Kanalizācijas stāvvads · Starpsienas › Inženierkomunikācijas: Kanalizācijas stāvvads · Ūdensapgāde: Kanalizācijas izvads
+dropRed,5,"Pamatplāns › Inženierkomunikācijas: Karstā ūdens stāvvads · Starpsienas › Inženierkomunikācijas: Karstā ūdens stāvvads · Ūdensapgāde: Karstā ūdens izvads · Ūdensapgāde: Aukstais, karstais ūdens + kanalizācija · Ūdensapgāde: Karstais ūdens + kanalizācija"
+drywallBox,1,Starpsienas: Ģipškartona kārba
+ductExhaust,1,Ventilācija: Nosūces gaisa vads
+ductSupply,1,Ventilācija: Pieplūdes gaisa vads
+eraser,7,Demontāža: Noņemt demontāžu · Grīdas segumi: Noņemt apdari · Sienu apdare: Noņemt apdari · Griesti: Noņemt apdari · Hidroizolācija: Noņemt hidroizolāciju · Izolācija: Noņemt izolāciju · Apmetums: Noņemt apmetumu
+extinguisher,1,Drošība: Ugunsdrošības aprīkojums
+eye,1,Kreisā josla
+factory,1,Mēbeles: Rūpnieciskās iekārtas
+fan,1,Ventilācija: Ventilatori
+faucet,1,Santehnika: Jaucējkrāni un dušas
+figure,1,Kreisā josla
+grille,1,Ventilācija: Restes un difuzori
+gym,1,Mēbeles: Sporta inventārs
+heat,1,Siltās grīdas: Kabeļa grīdas apsilde
+heatIR,1,Siltās grīdas: Infrasarkanā grīdas apsilde
+heatWall,1,Siltās grīdas: Apsildāma siena (kabelis)
+heatWater,1,Siltās grīdas: Ūdens grīdas apsilde
+help,1,Kreisā josla
+hole,2,Pamatplāns: Grīdas atvērums · Griesti: Griestu atvērums
+house,1,Mēbeles: Mājas un pirtis
+insulation,1,Izolācija: Minerālvates izolācija
+insulationMembrane,1,Izolācija: Membrānas izolācija
+insulationRoll,1,Izolācija: Rullējamā izolācija
+insulationSound,2,Izolācija: ZIPS skaņas izolācijas panelis · Izolācija: Skaņas izolācija
+insulationXPS,1,Izolācija: Ekstrudētā putupolistirola izolācija
+junction,1,Elektroinstalācija: Griestu sadales kārba
+junctionWall,1,Elektroinstalācija: Sienas sadales kārba
+kitchen,1,Mēbeles: Virtuve un ēdamistaba
+leakPanel,1,Drošība: Noplūdes kontroles panelis
+led,1,Apgaismojums: LED lente
+linear,1,Apgaismojums: Lineārais gaismeklis
+manifold,3,Apkure: Kolektoru mezgli · Ūdensapgāde: Kolektora mezgls · Siltās grīdas: Kolektoru mezgli
+medical,1,Mēbeles: Medicīnas aprīkojums
+mirror,1,Santehnika: Aksesuāri
+module,1,Sadales skapis: Citi moduļi
+molding,1,Griesti: Griestu līste
+node,2,Ūdensapgāde: Mezgls · Elektroinstalācija: Mezgls
+office,1,Mēbeles: Kabinets un birojs
+panel,2,Rozetes: Elektrības sadalnes · Elektroinstalācija: Elektrības sadalnes
+parquet,1,"Grīdas segumi: Dēļi, masīvkoks un parkets"
+partitionBrick,1,Starpsienas: Ķieģeļu starpsiena
+partitionDry,1,Starpsienas: Ģipškartona starpsiena
+partitionFoam,1,Starpsienas: Putu bloku starpsiena
+partitionGlass,1,Starpsienas: Stikla starpsiena
+partitionGypsum,1,Starpsienas: Ģipša bloku starpsiena
+partitionSlat,1,Starpsienas: Līstu starpsiena
+pipeBlue,2,Apkure: Atgaitas cauruļvads · Ūdensapgāde: Aukstā ūdens caurule
+pipeBrown,1,Ūdensapgāde: Kanalizācijas caurule
+pipeRed,3,Apkure: Turpgaitas cauruļvads · Ūdensapgāde: Karstā ūdens caurule · Siltās grīdas: Cauruļu sistēma
+planks,2,Grīdas segumi: Lamināts un vinils · Sienu apdare: Paneļi un līstes
+plant,1,Mēbeles: Interjers un dekors
+plaster,2,Sienu apdare: Dekoratīvais apmetums · Apmetums: Sienu apmešana
+plasterBeacon,1,Apmetums: Sienu apmešana pa bākām
+plasterCeiling,2,Apmetums: Griestu apmešana · Apmetums: Griestu apmešana pa bākām
+radiator,7,Pamatplāns › Inženierkomunikācijas: Radiators · Starpsienas › Inženierkomunikācijas: Radiators · Apkure: Bimetāla radiators · Apkure: Tērauda radiators · Apkure: Čuguna radiators · Mēbeles › Interjers un dekors: Radiatora skapis ar plauktiem · Mēbeles › Interjers un dekors: Radiatora pārsegs
+radiatorTube,2,Apkure: Cauruļu radiators · Apkure: Garš cauruļu radiators
+radiatorVertical,1,Apkure: Vertikālais radiators
+rcd,1,Sadales skapis: Aizsardzības ierīces
+restaurant,1,Mēbeles: Restorāni un kafejnīcas
+roller,1,Sienu apdare: Tapetes un krāsa
+router,2,Rozetes: Papildierīces · Ventilācija: Papildierīces
+scissors,1,Mēbeles: Skaistumkopšanas saloni
+sconce,1,Apgaismojums: Sienas gaismekļi
+screed,2,Grīdas klons: Smilšu-cementa klons · Grīdas klons: Pussausais klons
+screedDry,1,Grīdas klons: Sausā izlīdzinošā kārta
+screedSelf,1,Grīdas klons: Pašizlīdzinošā grīda
+search,1,Kreisā josla
+sensor,1,Drošība: Kustības sensors
+sensorLeak,1,Drošība: Ūdens noplūdes sensors
+sensorLight,1,Drošība: Gaismas sensors
+separator,1,Sadales skapis: Moduļu atdalītājs
+shower,1,Santehnika: Dušas kabīnes
+sink,1,Santehnika: Izlietnes
+smoke,2,Pamatplāns › Inženierkomunikācijas: Dūmu detektors · Starpsienas › Inženierkomunikācijas: Dūmu detektors
+socket,8,Rozetes: Rozete 220 V · Rozetes › Vājstrāvas rozetes: TV rozete · Rozetes › Vājstrāvas rozetes: Interneta rozete · Rozetes › Vājstrāvas rozetes: USB rozete · Rozetes › Vājstrāvas rozetes: HDMI rozete · Rozetes › Vājstrāvas rozetes: Telefona rozete · Rozetes › Vājstrāvas rozetes: Audio rozete · Sadales skapis › Citi moduļi: Sadalnes rozete
+socket380,1,Rozetes: Jaudas rozete 380 V (trīsfāžu)
+socketBlock,1,Rozetes: Rozešu bloks
+socketCeiling,1,Rozetes: Griestu rozete
+socketFloor,1,Rozetes: Grīdas rozete
+socketPower,1,Rozetes: Jaudas rozete 220 V (vienfāzes)
+socketTV,1,Rozetes: Vājstrāvas rozetes
+socketWet,1,Rozetes: Mitrumizturīga rozete 220 V
+sofa,1,Mēbeles: Dzīvojamā istaba un guļamistaba
+spot,1,Apgaismojums: Iebūvējamie gaismekļi
+stairs,2,Pamatplāns: Kāpnes · Starpsienas: Kāpnes
+start,1,Grīdas segumi: Sākuma punkts
+switch,7,Pamatplāns › Inženierkomunikācijas: Sadales skapis · Starpsienas › Inženierkomunikācijas: Sadales skapis · Slēdži: Viena taustiņa slēdzis · Sadales skapis › Automātslēdži: 1-pola slodzes slēdzis · Sadales skapis › Automātslēdži: 2-pola slodzes slēdzis · Sadales skapis › Automātslēdži: 3-polu slodzes slēdzis · Sadales skapis › Automātslēdži: 4-polu slodzes slēdzis
+switch2,1,Slēdži: Divtaustiņu slēdzis
+switch3,1,Slēdži: Trīstaustiņu slēdzis
+switchCross,2,Slēdži: Krusteniskais slēdzis · Slēdži: Divtaustiņu krusteniskais slēdzis
+switchMaster,1,Slēdži: Galvenais slēdzis
+switchTwoWay,2,Slēdži: Pārslēdzis · Slēdži: Divtaustiņu pārslēdzis
+terrace,1,Pamatplāns: Terase un zemes gabals
+thermostat,2,Santehnika › Jaucējkrāni un dušas: Termostatiska bidē duša · Siltās grīdas: Termostats
+tiles,3,Grīdas segumi: Keramikas un porcelāna flīzes · Sienu apdare: Flīzes un akmens · Sienu apdare: Kombinēta apdare
+toilet,1,Santehnika: Tualetes podi un bidē
+towel,1,Santehnika: Dvieļu žāvētāji
+track,1,Apgaismojums: Sliežu gaismekļi
+utilities,2,Pamatplāns: Inženierkomunikācijas · Starpsienas: Inženierkomunikācijas
+wall,1,Pamatplāns: Zīmēt sienu
+water,2,Hidroizolācija: Grīdas hidroizolācija · Hidroizolācija: Sienu hidroizolācija
+window,2,Pamatplāns: Logi · Starpsienas: Logi
+wireE,1,Sadales skapis: Zemējuma vads
+wireL1,1,Sadales skapis: Fāzes vads
+wireL2,1,Sadales skapis: Fāzes vads L2
+wireL3,1,Sadales skapis: Fāzes vads L3
+wireN,1,Sadales skapis: Neitrāles vads
+wireOut,1,Rozetes: Vadu izvadi
+zone,4,Grīdas segumi: Grīdas zonēšana · Griesti: Griestu zonēšana · Hidroizolācija: Grīdas zonēšana · Grīdas klons: Grīdas zonēšana
+zoning,1,Starpsienas: Telpas zonēšana
