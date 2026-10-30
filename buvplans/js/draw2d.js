@@ -321,11 +321,16 @@ export function wallPolygon(w, walls) {
   return [corner('a', 1), corner('b', 1), corner('b', -1), corner('a', -1)];
 }
 
+/** Noklusējuma „Rādīt/slēpt” vērtības lapai: izmēri un telpu numuri tikai tur, kur tie pieder. */
+export function stageShowDefaults(stage) {
+  return { ...SHOW_DEFAULTS, wallDims: !stage || !!stage.dims, extDims: !stage || !!stage.dims, roomNumbers: !!stage?.roomNumbers };
+}
+
 export function drawFloor(ctx, floor, view, t, opts = {}) {
   const { scale, ox, oy } = view;
   const S = (p) => ({ x: p.x * scale + ox, y: p.y * scale + oy });
   const W = opts.width, H = opts.height, stage = opts.stage || null;
-  const show = { ...SHOW_DEFAULTS, ...(opts.show || {}) };
+  const show = { ...stageShowDefaults(stage), ...(opts.show || {}) };
   const sel = opts.selection, hov = opts.hover;
   const isSel = (kind, id) => sel && sel.kind === kind && sel.id === id;
   const isHov = (kind, id) => hov && hov.kind === kind && hov.id === id;
@@ -359,7 +364,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   for (const { z, mode } of zones.filter((x) => x.z.type === 'plot' || x.z.type === 'terrace')) drawZone(ctx, z, mode, S, t, isSel('zones', z.id) || isHov('zones', z.id), opts.units);
 
   // Grīdas: kontūrs izriet no sienām; apdares stadijās redzams materiāls
-  const fill = stage?.roomFill || (opts.floors ? 'floor' : null);
+  const fill = show.finishing ? stage?.roomFill || (opts.floors ? 'floor' : null) : null;
   for (const r of floor.rooms) {
     if (r.points.length < 3) continue;
     pathPoly(ctx, r.points.map(S));
@@ -425,7 +430,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   ctx.lineJoin = 'miter';
 
   // Sienu virsmu apdare (krāsa, flīzes, izolācija, apmetums, hidroizolācija)
-  const faceTarget = stage?.faces || (!stage && show.finishing ? 'wall' : null);
+  const faceTarget = !show.finishing ? null : stage?.faces || (!stage ? 'wall' : null);
   for (const { w } of walls) {
     for (const side of ['p', 'n']) {
       const val = faceTarget && w.faces?.[side]?.[faceTarget];
@@ -468,7 +473,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
   }
 
   // Izmēri gar sienām
-  if (opts.dims && (!stage || stage.dims) && (show.wallDims || show.extDims)) {
+  if (opts.dims && (show.wallDims || show.extDims)) {
     drawWallDims(ctx, floor, walls.map((x) => x.w), openings, view, t, opts.units, show);
   }
 
@@ -602,7 +607,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     if (r.points.length < 3) return;
     const c = S(interiorPoint(r.points));
     const area = polygonArea(r.points) / 1e4;
-    if (stage?.roomNumbers && show.roomNumbers) {
+    if (show.roomNumbers) {
       ctx.beginPath();
       ctx.arc(c.x, c.y - 36, 12, 0, Math.PI * 2);
       ctx.fillStyle = t.bg;

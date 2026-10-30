@@ -140,7 +140,7 @@ $$('[data-exp]').forEach((b) => b.addEventListener('click', () => {
     case 'plan': exportProject(); break;
     case 'load': $('#fileImport').click(); break;
     case 'pdf': setView('album'); break;
-    case 'png': exportImage(renderFloorImage(f, THEME, { width: 2200, height: 1500, units: editor.settings.units, stage, show: editor.settings.show }), `${name}.png`); break;
+    case 'png': exportImage(renderFloorImage(f, THEME, { width: 2200, height: 1500, units: editor.settings.units, stage, show: editor.showFor() }), `${name}.png`); break;
     case 'svg': {
       const svg = floorSVG(f, { units: editor.settings.units });
       if (embedded) copyText(svg, 'SVG nokopēts starpliktuvē');
@@ -192,6 +192,7 @@ function setStage(id) {
   storage.setPref('stage', stage.id);
   $$('#stageTabs .stage-tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.stage === stage.id)));
   if (!$('#showPop').hidden) renderShow();
+  syncToggles();
   $(`#stageTabs [data-stage="${stage.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   editor.setStage(stage);
   closeFloating();
@@ -829,14 +830,16 @@ $('#settingsBtn').addEventListener('click', () => togglePop('#settingsPop', rend
 const SHOW_LABELS = [['wallDims', 'Sienu izmēri'], ['extDims', 'Ārējie izmēri'], ['userDims', 'Papildu izmēri'], ['itemDims', 'Priekšmetu izmēri'], ['heights', 'Augstumi'],
   ['roomNumbers', 'Telpu numuri'], ['areas', 'Laukumi'], ['furniture', 'Mēbeles'], ['outlets', 'Rozetes un slēdži'], ['finishing', 'Apdare'], ['water', 'Ūdensapgāde'],
   ['linear', 'Lineārais apgaismojums'], ['lighting', 'Apgaismojums'], ['ac', 'Kondicionēšana un ventilācija'], ['wireLengths', 'Vadu garumi'], ['comments', 'Komentāri']];
+// Šie slēdži pamatplānā aizstāti ar sarakstu „Citi plāni” (lai nav dubultu)
+const LAYER_TOGGLES = new Set(['furniture', 'outlets', 'water', 'linear', 'lighting', 'ac', 'wireLengths', 'itemDims', 'heights']);
 // Plāni, kurus pamatplānā (un demontāžā, starpsienās) var ieslēgt fonā
 const BASE_LAYERS = ['radiators', 'furniture', 'santeh', 'waterplan', 'sockets', 'light_connections', 'light', 'cables', 'warm_floor', 'conditioners', 'ventilation', 'security'];
 function renderShow() {
-  const sh = editor.settings.show, bs = editor.settings.baseShow || {};
+  const sh = editor.showFor(), bs = editor.settings.baseShow || {};
   const base = stage.build ? `<h4>Citi plāni lapā „${esc(stage.name)}”</h4><div class="row col-tight">
       <button type="button" class="btn small" data-base-all="1">Ieslēgt visus</button><button type="button" class="btn small" data-base-all="0">Izslēgt visus</button></div>
     ${BASE_LAYERS.map((id) => `<label class="check"><input type="checkbox" data-base="${id}" ${bs[id] ? 'checked' : ''}><span>${esc(stageById(id).name)}</span></label>`).join('')}<h4>Elementi</h4>` : '';
-  $('#showPop').innerHTML = panelHead('Rādīt/slēpt elementus', 'showPop') + `<div class="props-body show-list">${base}${SHOW_LABELS.map(([k, n]) => `<label class="check"><input type="checkbox" data-show="${k}" ${sh[k] ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div>`;
+  $('#showPop').innerHTML = panelHead('Rādīt/slēpt elementus', 'showPop') + `<div class="props-body show-list">${base}${SHOW_LABELS.filter(([k]) => !(stage.build && LAYER_TOGGLES.has(k))).map(([k, n]) => `<label class="check"><input type="checkbox" data-show="${k}" ${sh[k] ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div>`;
   const setBase = (id, on) => { editor.settings.baseShow = { ...(editor.settings.baseShow || {}), [id]: on }; };
   $$('[data-base]', $('#showPop')).forEach((i) => i.addEventListener('change', () => {
     setBase(i.dataset.base, i.checked);
@@ -850,7 +853,8 @@ function renderShow() {
     editor.requestRender();
   }));
   $$('[data-show]', $('#showPop')).forEach((i) => i.addEventListener('change', () => {
-    editor.settings.show[i.dataset.show] = i.checked;
+    const ss = (editor.settings.showStage = editor.settings.showStage || {});
+    ss[stage.id] = { ...(ss[stage.id] || {}), [i.dataset.show]: i.checked };
     saveSettings();
     syncToggles();
     editor.requestRender();
@@ -1065,7 +1069,7 @@ $$('.bb-toggle').forEach((b) => b.addEventListener('click', () => {
 function syncToggles() {
   $$('.bb-toggle').forEach((b) => {
     const k = b.dataset.setting;
-    const on = k === 'elements' ? Object.values(editor.settings.show).every(Boolean) : !!editor.settings[k];
+    const on = k === 'elements' ? Object.values(editor.settings.showStage?.[stage.id] || {}).every(Boolean) : !!editor.settings[k];
     b.setAttribute('aria-pressed', String(on));
   });
   root.classList.toggle('hints-off', !editor.settings.hints);

@@ -7,7 +7,7 @@ import {
   nearestWall, moveJoint, segmentCovered, uid, snapshotWalls, followHosts,
   groupMembers, rotateItems, itemsFromLibrary,
 } from './model.js';
-import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen, onSheet } from './draw2d.js';
+import { drawFloor, drawOpening, THEME, fitView, itemDrawScale, fmtLen, onSheet, stageShowDefaults } from './draw2d.js';
 import { rebuildRooms } from './rooms.js';
 import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
 import { layerMode, wallMode } from './stages.js';
@@ -198,11 +198,16 @@ export class Editor2D {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(ctx, this.floor, this.view, this.theme, {
       stage: this.stage, width: this.w, height: this.h, grid: this.settings.grid, dims: this.settings.dims, units: this.settings.units,
-      show: this.settings.show, baseShow: this.settings.baseShow, selection: this.store.selection, hover: this.hover, faceHover: this.state.faceHover, onImage: () => this.requestRender(),
+      show: this.showFor(), baseShow: this.settings.baseShow, selection: this.store.selection, hover: this.hover, faceHover: this.state.faceHover, onImage: () => this.requestRender(),
       multi: new Set(this.store.multi || []),
     });
     this.drawPreview(ctx);
     this.hooks.onView?.(this.view);
+  }
+
+  /** „Rādīt/slēpt elementus” vērtības aktīvajai lapai (katrai lapai savas). */
+  showFor(stage = this.stage) {
+    return { ...stageShowDefaults(stage), ...(this.settings.showStage?.[stage?.id] || {}) };
   }
 
   /** Bultiņu pogas ap atlasīto sienas punktu (ekrāna koordinātās). */
