@@ -15,6 +15,8 @@ export const toUnit = (cm, units) => cm * u(units).k;
 export const fromUnit = (v, units) => v / u(units).k;
 export const unitStep = (units) => u(units).step;
 export const unitNudge = (units) => u(units).nudge;
+/** Viena iedaļa sienas punkta pabīdīšanai ar bultiņām: 1 mm, 1 cm, 1 cm (m režīmā = 0,01 m) vai 1 colla. */
+export const unitDivision = (units) => ({ mm: 0.1, cm: 1, m: 1, in: 2.54 }[units] ?? 1);
 
 /** Vērtība ievadlaukam: centimetri, pārrēķināti un noapaļoti līdz vienības precizitātei. */
 export function inputValue(cm, units) {

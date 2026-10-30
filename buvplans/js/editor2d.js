@@ -13,11 +13,11 @@ import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
 import { layerMode, wallMode } from './stages.js';
 import { wallMaterial } from './walls.js';
 import { LINE_TYPES, ZONE_TYPES, FINISHES } from './catalog-data.js';
-import { fromUnit, unitName } from './units.js';
+import { fromUnit, unitName, unitDivision, fmtNum } from './units.js';
 
 export const TOOLS = {
   select: { name: 'Atlasīt', key: 'v', hint: 'Klikšķis atlasa objektu, vilkšana pārvieto. Tukšā vietā vilkšana bīda plānu.' },
-  wall: { name: 'Zīmēt sienu', key: 'w', hint: 'Klikšķini sienas sākumu un katru stūri. Ieraksti garumu ar cipariem un Enter. Dubultklikšķis vai Esc pabeidz. Shift — bez leņķa piesaistes.' },
+  wall: { name: 'Zīmēt sienu', key: 'w', hint: 'Klikšķini sienas sākumu un katru stūri. Ieraksti garumu ar cipariem un Enter. Dubultklikšķis vai Esc pabeidz. Ar Shift siena griežas pa leņķa soli (apakšējā joslā).' },
   rect: { name: 'Taisnstūris', key: 'k', hint: 'Velc taisnstūri — tiks izveidotas četras sienas.' },
   door: { name: 'Durvis', key: 'd', hint: 'Klikšķini uz sienas, lai ievietotu durvis.' },
   window: { name: 'Logs', key: 'l', hint: 'Klikšķini uz sienas, lai ievietotu logu.' },
@@ -55,7 +55,7 @@ export class Editor2D {
     this.settings = {
       grid: true, snap: true, magnet: true, dims: true, hints: true, units: 'cm',
       wallMaterial: 'gas', wallThickness: 25, wallColor: 'white', partitionMaterial: 'drywall', partitionThickness: 10,
-      socketHeight: 30, boxHeight: 240, show: {},
+      socketHeight: 30, boxHeight: 240, angleStep: 15, show: {},
     };
     this.stage = null;
     this.tool = 'select';
@@ -166,6 +166,7 @@ export class Editor2D {
   }
 
   setTool(tool, extra = {}) {
+    this.jointSel = null;
     this.finishChain();
     this.finishLine();
     this.tool = tool;
@@ -204,8 +205,57 @@ export class Editor2D {
     this.hooks.onView?.(this.view);
   }
 
+  /** Bultiņu pogas ap atlasīto sienas punktu (ekrāna koordinātās). */
+  jointArrows() {
+    const j = this.jointSel;
+    if (!j || this.tool !== 'select' || this.store.selection?.kind !== 'walls' || !this.floor.walls.some((w) => dist(w.a, j) < 0.01 || dist(w.b, j) < 0.01)) return [];
+    const c = this.toScreen(j), R = 34;
+    return [[[0, -1], 0, -R], [[0, 1], 0, R], [[-1, 0], -R, 0], [[1, 0], R, 0]].map(([dir, dx, dy]) => ({ dir, x: c.x + dx, y: c.y + dy }));
+  }
+
+  jointArrowAt(sx, sy) {
+    return this.jointArrows().find((a) => Math.hypot(a.x - sx, a.y - sy) <= 13)?.dir || null;
+  }
+
+  /** Pabīda atlasīto sienas punktu par vienu mērvienības iedaļu. */
+  nudgeJoint(dir) {
+    const j = this.jointSel;
+    if (!j) return;
+    const d = unitDivision(this.settings.units);
+    const to = { x: j.x + dir[0] * d, y: j.y + dir[1] * d };
+    this.store.commit((f) => {
+      const before = snapshotWalls(f);
+      moveJoint(f, j, to);
+      followHosts(f, before);
+      rebuildRooms(f);
+    });
+    this.jointSel = to;
+    this.status(`Sienas punkts pabīdīts par ${fmtNum(d, this.settings.units)} ${unitName(this.settings.units)}.`);
+    this.requestRender();
+  }
+
   drawPreview(ctx) {
     const t = this.theme, st = this.state, c = this.cursor;
+    for (const a of this.jointArrows()) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = t.accent;
+      ctx.stroke();
+      ctx.translate(a.x, a.y);
+      ctx.rotate(Math.atan2(a.dir[1], a.dir[0]));
+      ctx.beginPath();
+      ctx.moveTo(6, 0);
+      ctx.lineTo(-3, -5.5);
+      ctx.lineTo(-3, 5.5);
+      ctx.closePath();
+      ctx.fillStyle = t.accent;
+      ctx.fill();
+      ctx.restore();
+    }
     const S = (p) => this.toScreen(p);
     const label = (p, text) => {
       ctx.font = `600 12px ${t.mono}`;
@@ -337,9 +387,14 @@ export class Editor2D {
   }
 
   // ---------- piesaiste ----------
-  snap(p, { anchor = null, free = false } = {}) {
+  /**
+   * Piesaiste. `angle`: 'step' — stingri pa leņķa soli (Shift), 'ortho' — viegli pievelk 0/90°,
+   * nenorādīts — pa leņķa soli, ja ieslēgta piesaiste.
+   */
+  snap(p, { anchor = null, free = false, angle = null } = {}) {
     const f = this.floor, tol = this.tol * 1.4, magnet = this.settings.magnet && !free;
-    if (magnet) {
+    const mode = anchor && !free ? angle || (this.settings.snap ? 'step' : null) : null;
+    if (magnet && mode !== 'step') {
       let best = null;
       for (const w of f.walls) {
         for (const q of [w.a, w.b]) {
@@ -350,12 +405,18 @@ export class Editor2D {
       if (best) return { p: { ...best.q }, snap: 'end' };
     }
     let q = p, kind = null;
-    if (anchor && !free && this.settings.snap) {
-      const v = sub(p, anchor);
-      const L = Math.hypot(v.x, v.y);
-      const ang = Math.round(Math.atan2(v.y, v.x) / (Math.PI / 12)) * (Math.PI / 12);
-      const Ls = round(L, 1);
-      q = { x: anchor.x + Math.cos(ang) * Ls, y: anchor.y + Math.sin(ang) * Ls };
+    const along = (ang) => {
+      const v = sub(p, anchor), Ls = round(Math.hypot(v.x, v.y), 1);
+      return { x: anchor.x + Math.cos(ang) * Ls, y: anchor.y + Math.sin(ang) * Ls };
+    };
+    const a0 = anchor ? Math.atan2(p.y - anchor.y, p.x - anchor.x) : 0;
+    const ortho = Math.round(a0 / (Math.PI / 2)) * (Math.PI / 2);
+    if (mode === 'step') {
+      const step = ((this.settings.angleStep || 15) * Math.PI) / 180;
+      q = along(Math.round(a0 / step) * step);
+      kind = 'angle';
+    } else if (mode === 'ortho' && Math.abs(a0 - ortho) < (8 * Math.PI) / 180) {
+      q = along(ortho);
       kind = 'angle';
     } else if (this.settings.snap && !free) {
       q = { x: round(p.x, 5), y: round(p.y, 5) };
@@ -531,7 +592,7 @@ export class Editor2D {
     }
     switch (this.tool) {
       case 'select': return this.downSelect(p, sx, sy, e);
-      case 'wall': return this.clickWall(this.snap(p, { anchor: this.state.anchor, free }).p);
+      case 'wall': return this.clickWall(this.snap(p, { anchor: this.state.anchor, angle: e.shiftKey ? 'step' : 'ortho' }).p);
       case 'rect': this.state.start = this.snap(p, { free }).p; return;
       case 'zone':
         if (this.state.points?.length) return this.clickZonePoint(this.snap(p, { free }).p);
@@ -587,7 +648,7 @@ export class Editor2D {
         this.canvas.style.cursor = onHandle ? 'crosshair' : h ? 'move' : 'default';
         return;
       }
-      case 'wall': this.cursor = this.snap(p, { anchor: this.state.anchor, free }); break;
+      case 'wall': this.cursor = this.snap(p, { anchor: this.state.anchor, angle: e.shiftKey ? 'step' : 'ortho' }); break;
       case 'rect': case 'dim': case 'zone': this.cursor = this.snap(p, { anchor: this.tool === 'dim' ? this.state.a : null, free }); break;
       case 'door': case 'window': case 'opening': this.ghostOpening(p); break;
       case 'place': this.ghostItem(p, e.altKey); break;
@@ -649,6 +710,11 @@ export class Editor2D {
     if (this.tool === 'demolish' && this.state.sectionStart) this.finishSection();
     if (this.drag?.mode === 'box') this.finishBox();
     if (this.drag?.follow) return;
+    if (this.drag?.mode === 'joint') {
+      // Klikšķis uz sienas gala punkta parāda bultiņas; pēc vilkšanas tās paliek pie jaunā punkta
+      this.jointSel = { ...this.drag.from };
+      this.status('Sienas punkts: bultiņas vai tastatūras bultiņas pabīda to par vienu iedaļu.');
+    }
     if (this.drag?.moved && this.drag.mode !== 'pan' && this.drag.mode !== 'box') this.store.touch();
     this.drag = null;
     this.requestRender();
@@ -657,14 +723,17 @@ export class Editor2D {
   // ---------- atlase un vilkšana ----------
   downSelect(p, sx, sy, e = {}) {
     const s = this.store.selection, sw = this.store.selected();
+    const arrow = this.jointArrowAt(sx, sy);
+    if (arrow) return this.nudgeJoint(arrow);
     if (s?.kind === 'walls' && sw) {
       for (const end of ['a', 'b']) {
         if (dist(sw[end], p) < this.tol) {
-          this.drag = { mode: 'joint', from: { ...sw[end] }, sx, sy };
+          this.drag = { mode: 'joint', from: { ...sw[end] }, other: { ...sw[end === 'a' ? 'b' : 'a'] }, sx, sy };
           return;
         }
       }
     }
+    this.jointSel = null;
     const hit = this.hitTest(p);
     if (!hit && e.shiftKey) {
       // Shift + vilkšana tukšā vietā — rāmja atlase
@@ -736,7 +805,8 @@ export class Editor2D {
       return;
     }
     if (dr.mode === 'joint') {
-      const to = this.snap(p, { free: e.shiftKey }).p;
+      // Shift — siena griežas ap otru galu pa leņķa soli
+      const to = e.shiftKey ? this.snap(p, { anchor: dr.other, angle: 'step' }).p : this.snap(p).p;
       const before = snapshotWalls(f);
       moveJoint(f, dr.from, to);
       followHosts(f, before);
@@ -1249,6 +1319,13 @@ export class Editor2D {
     if (k === ' ') {
       this.spaceDown = true;
       return true;
+    }
+    if (this.jointSel && this.tool === 'select') {
+      const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k];
+      if (dir) {
+        this.nudgeJoint(dir);
+        return true;
+      }
     }
     const sel = this.store.selected();
     const many = this.store.multi?.length ? this.store.selectedItems() : null;

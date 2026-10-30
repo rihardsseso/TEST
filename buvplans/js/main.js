@@ -1026,6 +1026,13 @@ $('#unitsSel').addEventListener('change', (e) => {
   if (currentView === 'calc') renderCalc();
   if (currentView === 'album') renderAlbum();
 });
+$('#angleStep').addEventListener('change', (e) => {
+  const v = Math.max(1, Math.min(90, Math.round(parseFloat(e.target.value) || 15)));
+  editor.settings.angleStep = v;
+  e.target.value = v;
+  saveSettings();
+  toast(`Leņķa solis ${v}° — turot Shift, siena griežas pa ${v}°.`);
+});
 $('#undoBtn').addEventListener('click', () => store.undo());
 $('#redoBtn').addEventListener('click', () => store.redo());
 $('#deleteBtn').addEventListener('click', () => store.deleteSelected());
@@ -1046,6 +1053,7 @@ function syncToggles() {
   root.classList.toggle('hints-off', !editor.settings.hints);
   root.classList.toggle('compact-tabs', !!editor.settings.compactTabs);
   $('#unitsSel').value = editor.settings.units;
+  $('#angleStep').value = editor.settings.angleStep || 15;
 }
 $$('[data-tool-btn]').forEach((b) => b.addEventListener('click', () => {
   if (currentView !== 'plan') setView('plan');
