@@ -279,8 +279,9 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
     } else if (active.spec.t === 'item') {
       const def = byKind(active.spec.item);
       const o = editor.state.over || {};
-      if (active.spec.item === 'column') h += numField('Garums:', 'w', o.w ?? def.w) + numField('Platums:', 'd', o.d ?? def.d);
-      else h += numField('Garums:', 'w', o.w ?? def.w) + numField('Platums:', 'd', o.d ?? def.d) + numField('Augstums:', 'h', o.h ?? def.h);
+      const lenWord = /bed|bunk/.test(def.sym || '') ? 'Garums:' : 'Dziļums:';
+      if (active.spec.item === 'column') h += numField('Platums:', 'w', o.w ?? def.w) + numField('Dziļums:', 'd', o.d ?? def.d);
+      else h += numField('Platums:', 'w', o.w ?? def.w) + numField(lenWord, 'd', o.d ?? def.d) + numField('Augstums:', 'h', o.h ?? def.h);
     } else if (active.spec.t === 'line') {
       const lt = LINE_TYPES[spec.line] || {};
       if (spec.line === 'beam') h += numField('Biezums:', 'width', spec.width ?? 20) + numField('Augstums:', 'height', spec.height ?? 30);

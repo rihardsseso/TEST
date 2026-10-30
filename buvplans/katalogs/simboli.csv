@@ -35,8 +35,8 @@ Apakšējais stūra skapis,Mēbeles,Virtuve un ēdamistaba,Apakšējie skapji,co
 Apakšējais stūra skapis (slēgts stūris),Mēbeles,Virtuve un ēdamistaba,Apakšējie skapji,cornerUnit,60,60,90,0,base_blind_corner_cabinet
 Apakšējais stūra skapis ar 2 atvilktnēm,Mēbeles,Virtuve un ēdamistaba,Apakšējie skapji,cornerUnit,60,60,90,0,corner_base_cabinet_with_2_drawers
 Apakšējais stūra skapis ar 3 atvilktnēm,Mēbeles,Virtuve un ēdamistaba,Apakšējie skapji,cornerUnit,60,60,90,0,corner_base_cabinet_with_3_drawers
-Apaļa kušete,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,roundBed,100,210,90,0,round_daybed
-Apaļa kušete ar aizkaru,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,roundBed,100,210,90,0,round_daybed_with_privacy_curtain
+Apaļa kušete,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,roundBed,200,200,40,0,round_daybed
+Apaļa kušete ar aizkaru,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,roundBed,210,210,200,0,round_daybed_with_privacy_curtain
 Apaļa mērcēšanās vanna,Mēbeles,Mājas un pirtis,Pirtis un saunas,tubRound,170,75,55,0,round_soaking_tub
 Apaļa moduļu sēdvieta,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,sofaCurve,200,90,85,0,round_modular_lobby_seating
 Apaļa reste,Ventilācija,Restes un difuzori,,grille,20,20,3,260,round_grille
@@ -44,7 +44,7 @@ Apaļa virsmas izlietne,Santehnika,Izlietnes,Virsmas izlietnes,tVessel,60,48,85,
 Apaļa virtuves izlietne,Mēbeles,Virtuve un ēdamistaba,Virtuves izlietnes,kSink,80,50,20,85,round_kitchen_sink
 Apaļš bāra galds,Mēbeles,Restorāni un kafejnīcas,Bāra mēbeles,roundTable,90,90,75,0,round_bar_table
 Apaļš mini akvārijs,Mēbeles,Interjers un dekors,Mēbeles dzīvniekiem,aquarium,60,40,60,0,mini_aquarium_round
-Apaļš naktsgaldiņš,Mēbeles,Dzīvojamā istaba un guļamistaba,Kumodes un skapīši,nightstand,100,210,90,0,round_bedside_table
+Apaļš naktsgaldiņš,Mēbeles,Dzīvojamā istaba un guļamistaba,Kumodes un skapīši,nightstand,45,45,55,0,round_bedside_table
 Apaļš pufs,Mēbeles,Dzīvojamā istaba un guļamistaba,Soli un pufi,pouf,60,60,45,0,round_ottoman
 Apaļš pusdienu galds,Mēbeles,Virtuve un ēdamistaba,Pusdienu galdi,roundDining,110,110,75,0,round_dining_table
 Apaļš putnu būris,Mēbeles,Interjers un dekors,Mēbeles dzīvniekiem,cage,60,40,60,0,bird_cage_round
@@ -97,9 +97,9 @@ Atvērts vīna plaukts,Mēbeles,Virtuve un ēdamistaba,Apakšējie skapji,kitche
 Audio rozete,Rozetes,Vājstrāvas rozetes,,socket,10,6,8,30,audio_socket
 Augļu un dārzeņu statīvs,Mēbeles,Tirdzniecības aprīkojums,Plaukti un statīvi,retailShelf,100,40,180,0,produce_display_rack
 Augstais krēsls,Mēbeles,Virtuve un ēdamistaba,Bāra mēbeles,stool,40,40,100,0,counter_stool
-Augstā gulta,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,170,0,loft_bed
-Augstā gulta ar dīvānu apakšā,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,170,0,loft_bed_with_sofa_underneath
-Augstā gulta ar galdu,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,170,0,loft_bed_with_desk
+Augstā gulta,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,180,0,loft_bed
+Augstā gulta ar dīvānu apakšā,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,180,0,loft_bed_with_sofa_underneath
+Augstā gulta ar galdu,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,180,0,loft_bed_with_desk
 Augsts apavu skapis ar 3 atgāžamām atvilktnēm,Mēbeles,Garderobe un priekšnams,Apavu skapji,tallCabinet,60,60,215,0,tall_shoe_cabinet_with_3_tilt_out_drawers
 Augsts kaktuss podā,Mēbeles,Interjers un dekors,Ziedi un augi,plant,50,50,140,0,tall_potted_cactus
 Augsts pārtikas skapis,Mēbeles,Virtuve un ēdamistaba,Augstie skapji,tallCabinet,60,60,215,0,tall_pantry_cabinet
@@ -166,7 +166,7 @@ Bērnu batuts,Mēbeles,Bērnistabas mēbeles,Rotaļu mēbeles,trampoline,60,60,8
 Bērnu elektromobilis,Mēbeles,Mājas un pirtis,Transportlīdzekļi,car,450,180,150,0,kids_electric_car
 Bērnu frizētavas krēsls (mašīna),Mēbeles,Skaistumkopšanas saloni,Frizētava,salonChair,45,50,90,0,kids_styling_chair_car_design
 Bērnu galdiņš,Mēbeles,Bērnistabas mēbeles,Galdi un krēsli,desk,120,60,75,0,kid_s_table
-Bērnu gultiņa,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,crib,70,130,90,0,crib
+Bērnu gultiņa,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,crib,66,126,90,0,crib
 Bērnu instrumentu galds,Mēbeles,Bērnistabas mēbeles,Rotaļu mēbeles,workbench,120,60,75,0,kids_tool_table
 Bērnu kāpelēšanas siena,Mēbeles,Bērnistabas mēbeles,Rotaļu mēbeles,playGym,60,60,80,0,kids_climbing_frame
 Bērnu krēsliņš,Mēbeles,Bērnistabas mēbeles,Galdi un krēsli,chair,45,50,90,0,kids_chair
@@ -268,13 +268,13 @@ Divdurvju medicīnas skapis,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,
 Divdurvju stikla ledusskapis,Mēbeles,Tirdzniecības aprīkojums,Dzesēšanas iekārtas,fridge,60,65,185,0,double_glass_door_refrigerator
 Divdurvju stūra modulis,Mēbeles,Garderobe un priekšnams,Stūra skapji,cornerUnit,90,90,85,0,double_door_corner_unit
 Divdurvju vertikālā saldētava,Mēbeles,Tirdzniecības aprīkojums,Dzesēšanas iekārtas,fridge,60,65,185,0,double_door_upright_freezer
-Divguļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,double_bed
-Divguļamā gulta bez galvgaļa,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,double_bed_without_headboard
+Divguļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,215,100,0,double_bed
+Divguļamā gulta bez galvgaļa,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,166,206,50,0,double_bed_without_headboard
 Divlīmeņu saldētava-lāde,Mēbeles,Tirdzniecības aprīkojums,Dzesēšanas iekārtas,fridge,60,65,185,0,double_level_chest_freezer
 Divstatņu pacēlājs,Mēbeles,Autoserviss,Automašīnu pacēlāji,carLift,350,250,200,0,two_post_lift
-Divstāvu gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bunk,100,210,170,0,bunk_bed
-Divstāvu gulta ar glabātuvi,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,170,0,bunk_bed_with_storage
-Divstāvu gulta ar platu apakšējo gultu,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,210,170,0,bunk_bed_with_full_size_lower_bed
+Divstāvu gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bunk,100,210,165,0,bunk_bed
+Divstāvu gulta ar glabātuvi,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,100,250,165,0,bunk_bed_with_storage
+Divstāvu gulta ar platu apakšējo gultu,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bunk,150,210,165,0,bunk_bed_with_full_size_lower_bed
 Divtaustiņu krusteniskais slēdzis,Slēdži,,,switch,10,6,8,90,double_gang_intermediate_switch
 Divtaustiņu pārslēdzis,Slēdži,,,switch,10,6,8,90,double_gang_two_way_switch
 Divtaustiņu slēdzis,Slēdži,,,switch,10,6,8,90,double_gang_switch
@@ -283,7 +283,7 @@ Divu laidu kāpnes,Pamatplāns,Kāpnes,U veida kāpnes,stairsU,100,300,270,0,two
 Divu laidu kāpnes ar pagrieziena pakāpieniem,Pamatplāns,Kāpnes,U veida kāpnes,stairsU,100,300,270,0,two_flight_winder_stairs
 Divu prožektoru sliedes gaismeklis,Apgaismojums,Griestu gaismekļi,,track,100,8,6,265,double_spot_rail_light
 Divu riņķu galda indukcijas plīts,Mēbeles,Sadzīves tehnika,Plītis,stove,60,52,5,85,double_desktop_induction_stove
-Divvietīga paceļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,double_murphy_bed
+Divvietīga paceļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,215,220,0,double_murphy_bed
 Divvietīgs dīvāns,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,sofa,160,90,85,0,two_seater_sofa
 Dīvāna modulis bez roku balstiem,Mēbeles,Dzīvojamā istaba un guļamistaba,Moduļu dīvāni,sofa,200,90,85,0,armless_sofa_module
 Dīvāns ar augstu atzveltni,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,sofa,200,90,85,0,high_back_privacy_sofa
@@ -452,11 +452,11 @@ Grozāms augstais krēsls bez atzveltnes,Mēbeles,Virtuve un ēdamistaba,Bāra m
 Grozāms bāra krēsls,Mēbeles,Virtuve un ēdamistaba,Bāra mēbeles,stool,40,40,100,0,swivel_bar_stool
 Grozāms bāra krēsls bez atzveltnes,Mēbeles,Virtuve un ēdamistaba,Bāra mēbeles,stool,40,40,100,0,backless_swivel_bar_stool
 Grozāms sienas gaismeklis,Apgaismojums,Sienas gaismekļi,,sconce,20,12,20,180,swivel_wall_light
-Gulta ar izvelkamu gultu,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,210,90,0,trundle_bed
-Gulta ar zaķa ausīm,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,210,90,0,bed_with_bunny_ears
-Gulta-laiva,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,210,90,0,boat_bed
-Gulta-sacīkšu mašīna,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,210,90,0,race_car_bed
-Gultas sols,Mēbeles,Dzīvojamā istaba un guļamistaba,Soli un pufi,benchPadded,100,210,90,0,bed_bench
+Gulta ar izvelkamu gultu,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,205,55,0,trundle_bed
+Gulta ar zaķa ausīm,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,205,120,0,bed_with_bunny_ears
+Gulta-laiva,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,110,220,90,0,boat_bed
+Gulta-sacīkšu mašīna,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,110,220,60,0,race_car_bed
+Gultas sols,Mēbeles,Dzīvojamā istaba un guļamistaba,Soli un pufi,benchPadded,120,40,45,0,bed_bench
 Guļošs manekens,Mēbeles,Interjers un dekors,Manekeni,mannequin,50,40,175,0,lying_mannequin
 Ģērbtuves skapītis,Mēbeles,Sporta inventārs,Spēļu galdi,locker,100,40,180,0,locker
 Ģērbtuves sols,Mēbeles,Sporta inventārs,Spēļu galdi,bench,120,40,45,0,locker_room_bench
@@ -473,7 +473,7 @@ Hanteļu statīvs,Mēbeles,Sporta inventārs,Spēļu galdi,weightRack,100,40,180
 HDMI rozete,Rozetes,Vājstrāvas rozetes,,socket,10,6,8,30,hdmi_socket
 Hidrauliskā prese,Mēbeles,Rūpnieciskās iekārtas,Kalšanas un metināšanas iekārtas,machine,150,120,200,0,hydraulic_press
 Hidroakumulators,Mēbeles,Mājas un pirtis,Mājas ūdensapgāde,tankF,50,50,90,0,hydraulic_accumulator
-Horizontālais solārijs,Mēbeles,Skaistumkopšanas saloni,Papildierīces,tanningBed,100,210,90,0,horizontal_tanning_bed
+Horizontālais solārijs,Mēbeles,Skaistumkopšanas saloni,Papildierīces,tanningBed,110,220,110,0,horizontal_tanning_bed
 Horizontālās žalūzijas,Mēbeles,Interjers un dekors,Aizkari un žalūzijas,blinds,200,12,260,0,horizontal_blinds
 Horizontāls mīkstais sienas panelis,Mēbeles,Dzīvojamā istaba un guļamistaba,Mīkstie paneļi un galvgaļi,wallPanel,40,12,50,140,horizontal_upholstered_wall_panel
 Horizontāls rentgena detektors,Mēbeles,Medicīnas aprīkojums,Radiogrāfija,mri,60,60,80,0,horizontal_x_ray_detector
@@ -482,7 +482,7 @@ Horizontāls ūdens sildītājs,Santehnika,Sadzīves tehnika,Ūdens sildītāji,
 Iebūvējamais gaismeklis,Apgaismojums,Iebūvējamie gaismekļi,,tSpot,12,12,5,267,recessed_spotlight
 Iebūvēta ledusskapja skapis,Mēbeles,Virtuve un ēdamistaba,Augstie skapji,tallCabinet,60,65,185,0,built_in_refrigerator_cabinet
 Iebūvēta sliede,Apgaismojums,Sliežu gaismekļi,,tSpot,12,12,5,267,recessed_track
-Iebūvēts griestu stiprinājums,Griesti,,,tCeilingSupport,100,210,90,0,ceiling_embedded_support
+Iebūvēts griestu stiprinājums,Griesti,,,tCeilingSupport,40,40,10,0,ceiling_embedded_support
 Iebūvēts izlietnes jaucējkrāns,Santehnika,Jaucējkrāni un dušas,,faucet,15,10,30,100,built_in_bathroom_sink_faucet
 Iebūvēts tvaika nosūcējs,Mēbeles,Sadzīves tehnika,Tvaika nosūcēji,hood,60,50,60,165,built_in_range_hood
 Iebūvēts vīna skapis,Mēbeles,Virtuve un ēdamistaba,Apakšējie skapji,kitchenBase,60,60,90,0,built_in_wine_cabinet
@@ -528,9 +528,9 @@ Izlietnes jaucējkrāns,Santehnika,Jaucējkrāni un dušas,,faucet,15,10,30,100,
 Izlietnes skapis ar atvilktnēm,Santehnika,Vannas istabas mēbeles,,tVanity,60,48,85,0,vanity_cabinet_with_drawers
 Izmeklēšanas galds,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,examTable,120,60,75,0,exam_table
 Izpārdošanas galds,Mēbeles,Tirdzniecības aprīkojums,Plaukti un statīvi,retailShelf,120,60,75,0,sale_table
-Izvelkama gulta,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,210,90,0,extendable_bed
+Izvelkama gulta,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,205,45,0,extendable_bed
 Izvelkamais dīvāns,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,sofa,200,90,85,0,sleeper_sofa
-"Izvelkamais dīvāns ""klik-klak""",Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,bedF,100,210,90,0,click_clack_sofa_bed
+"Izvelkamais dīvāns ""klik-klak""",Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,bedF,195,95,90,0,click_clack_sofa_bed
 Izvelkamais krēsls,Mēbeles,Dzīvojamā istaba un guļamistaba,Atpūtas krēsli,armchair,85,85,90,0,sleeper_chair
 "Japāņu aizkari (griestu, 4 paneļi)",Mēbeles,Interjers un dekors,Aizkari un žalūzijas,blinds,200,12,260,0,japanese_curtains_ceiling_mounted_4_panels
 "Japāņu aizkari (griestu, 6 paneļi)",Mēbeles,Interjers un dekors,Aizkari un žalūzijas,blinds,200,12,260,0,japanese_curtains_ceiling_mounted_6_panels
@@ -546,7 +546,7 @@ Kafijas stacija,Mēbeles,Tirdzniecības aprīkojums,Citas iekārtas un mēbeles,
 Kaktuss podā,Mēbeles,Interjers un dekors,Ziedi un augi,plant,50,50,140,0,potted_cactus
 Kaķu mājiņa ar nagu asināmo,Mēbeles,Interjers un dekors,Mēbeles dzīvniekiem,catHouse,60,40,60,0,cat_s_house_scratcher
 Kaķu tualete,Mēbeles,Interjers un dekors,Mēbeles dzīvniekiem,litterBox,60,40,60,0,litter_box
-Kalta metāla divguļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,double_wrought_iron_bed
+Kalta metāla divguļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,215,110,0,double_wrought_iron_bed
 Kamīns ar portālu,Mēbeles,Mājas un pirtis,Kamīni un krāsnis,fireplace,100,50,110,0,fireplace_with_surround
 Kanalizācijas izvads,Ūdensapgāde,,,water,12,8,12,40,sewer_outlet
 Kanalizācijas stāvvads,Pamatplāns,Inženierkomunikācijas,,riser,15,15,270,0,sewer_riser
@@ -617,7 +617,7 @@ Kupola tipa trauku mazgājamā mašīna,Mēbeles,Restorāni un kafejnīcas,Trauk
 Kupolveida kamera,Drošība,Novērošanas kameras,,camera,12,12,10,250,dome_camera
 Kupolveida tvaika nosūcējs,Mēbeles,Sadzīves tehnika,Tvaika nosūcēji,hood,60,50,60,165,dome_range_hood
 Kustības sensors,Drošība,,,sensor,10,10,4,260,motion_sensor
-Kušete,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,100,210,90,0,daybed
+Kušete,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,200,90,45,0,daybed
 Kvadrātveida dušas kabīne,Santehnika,Dušas kabīnes,Gatavas dušas kabīnes,tShower,90,90,200,0,square_shower_enclosure
 Kvadrātveida dušas paliktnis,Santehnika,Dušas kabīnes,Dušas paliktņi,tShower,90,90,200,0,square_shower_base
 Kvadrātveida mērcēšanās vanna,Mēbeles,Mājas un pirtis,Pirtis un saunas,tubRound,170,75,55,0,square_soaking_tub
@@ -697,7 +697,7 @@ Maza gastronomijas vitrīna,Mēbeles,Tirdzniecības aprīkojums,Vitrīnas,displa
 Mazs pufa modulis,Mēbeles,Dzīvojamā istaba un guļamistaba,Moduļu dīvāni,pouf,60,60,45,0,small_ottoman_module
 Mazs studijas fons,Mēbeles,Interjers un dekors,Fotostudijas aprīkojums,backdrop,60,60,80,0,small_studio_backdrop
 Mazs ugunsdzēsības skapis,Drošība,Ugunsdrošības aprīkojums,,tFireCab,60,25,90,60,small_fire_cabinet
-Mājdzīvnieka guļvieta,Mēbeles,Interjers un dekors,Mēbeles dzīvniekiem,petBed,100,210,90,0,pet_bed
+Mājdzīvnieka guļvieta,Mēbeles,Interjers un dekors,Mēbeles dzīvniekiem,petBed,70,55,20,0,pet_bed
 Mājiņas formas plaukts,Mēbeles,Dzīvojamā istaba un guļamistaba,Plauktu skapji un plaukti,shelfUnit,100,40,180,0,house_shaped_storage_shelf
 Māla ekstrūderis,Mēbeles,Rūpnieciskās iekārtas,Keramikas darbnīcas aprīkojums,machine,60,60,80,0,clay_extruder
 Māla nostādināšanas tvertne,Mēbeles,Rūpnieciskās iekārtas,Keramikas darbnīcas aprīkojums,machine,60,60,80,0,clay_settling_tank
@@ -773,7 +773,7 @@ Olu pārbaudes ierīce,Mēbeles,Tirdzniecības aprīkojums,Citas iekārtas un m�
 Operāciju galds,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,examTable,120,60,75,0,operating_table
 Optiskās biopsijas ierīce,Mēbeles,Medicīnas aprīkojums,Papildierīces,medCart,60,60,80,0,optical_biopsy_device
 Orbitrex,Mēbeles,Sporta inventārs,Trenažieri,elliptical,180,80,140,0,elliptical_machine
-Ortopēdiskā gulta,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,hospitalBed,100,210,90,0,orthopedic_trauma_bed
+Ortopēdiskā gulta,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,hospitalBed,100,215,60,0,orthopedic_trauma_bed
 Otomane,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,pouf,60,60,45,0,ottoman
 Ovāla moduļu sēdvieta,Mēbeles,Dzīvojamā istaba un guļamistaba,Dīvāni,sofaCurve,200,90,85,0,oval_modular_lobby_seating
 Ovāla virsmas izlietne,Santehnika,Izlietnes,Virsmas izlietnes,tVessel,60,48,85,0,oval_vessel_sink
@@ -782,8 +782,8 @@ Ovāls spogulis,Mēbeles,Interjers un dekors,Spoguļi,mirrorF,60,4,90,100,oval_m
 Ovāls žurnālgaldiņš,Mēbeles,Dzīvojamā istaba un guļamistaba,Žurnālgaldiņi,coffeeTable,180,100,75,0,oval_coffee_table
 Paaugstināta bāra lete,Mēbeles,Virtuve un ēdamistaba,Bāra mēbeles,barCounter,120,60,75,0,raised_bar_counter
 Paaugstināta stūra bāra lete,Mēbeles,Virtuve un ēdamistaba,Bāra mēbeles,barCounter,120,60,75,0,corner_raised_bar_counter
-Paceļamā gulta ar dīvānu,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,murphy_bed_with_sofa
-Paceļamā gulta ar skapjiem,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,murphy_bed_with_storage_cabinets
+Paceļamā gulta ar dīvānu,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,180,215,220,0,murphy_bed_with_sofa
+Paceļamā gulta ar skapjiem,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,300,215,220,0,murphy_bed_with_storage_cabinets
 Paceļams atbalsta rokturis,Mēbeles,Medicīnas aprīkojums,Atbalsta rokturi,bar,60,8,8,85,flip_up_grab_bar
 Pacientu nestuves,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,hospitalBed,60,60,80,0,patient_stretcher
 Pakaramā āķi,Mēbeles,Garderobe un priekšnams,Pakaramie un āķi,coatRack,30,10,10,100,hooks_for_coat_rack
@@ -832,10 +832,10 @@ Piekarams TV skapītis,Mēbeles,Dzīvojamā istaba un guļamistaba,Kumodes un sk
 Piekarams vannas istabas skapis,Santehnika,Vannas istabas mēbeles,,tVanity,60,48,85,0,wall_mounted_vanity_cabinet
 Piekarams veļas skapis,Santehnika,Vannas istabas mēbeles,,tCab,100,40,180,0,wall_mounted_linen_cabinet
 Pielaikošanas kabīne,Mēbeles,Tirdzniecības aprīkojums,Citas iekārtas un mēbeles,fittingRoom,60,60,80,0,fitting_room
-Piestumjamā gultiņa,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,100,210,90,0,side_bed
+Piestumjamā gultiņa,Mēbeles,Bērnistabas mēbeles,Gultas un dīvāni,bedF,60,95,75,0,side_bed
 Pievilkšanās stienis,Mēbeles,Sporta inventārs,Spēļu galdi,barre,120,60,75,0,pull_up_bar
 Pievilkšanās un līdztekas stacija,Mēbeles,Sporta inventārs,Trenažieri,multiGym,150,120,200,0,pull_up_dip_station
-Pilna izmēra paceļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,170,210,100,0,full_size_murphy_bed
+Pilna izmēra paceļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,150,210,220,0,full_size_murphy_bed
 Pirts atzveltne,Mēbeles,Mājas un pirtis,Pirtis un saunas,slats,60,60,80,0,sauna_backrest
 Pirts galds,Mēbeles,Mājas un pirtis,Pirtis un saunas,plankTable,120,60,75,0,bath_table
 Pirts galvas balsts,Mēbeles,Mājas un pirtis,Pirtis un saunas,slats,60,60,80,0,bath_headrest
@@ -1052,7 +1052,7 @@ Stūra drēbju pakaramais,Mēbeles,Garderobe un priekšnams,Pakaramie un āķi,c
 Stūra drēbju skapis,Mēbeles,Garderobe un priekšnams,Stūra skapji,wardrobe,120,60,220,0,corner_wardrobe
 Stūra kamīns,Mēbeles,Mājas un pirtis,Kamīni un krāsnis,fireplace,100,50,110,0,corner_fireplace
 Stūra konsolgalds,Mēbeles,Dzīvojamā istaba un guļamistaba,Konsolgaldi,consoleTable,120,60,75,0,corner_console_table
-Stūra kušete,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,100,210,90,0,corner_daybed
+Stūra kušete,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,200,160,45,0,corner_daybed
 Stūra lete,Mēbeles,Restorāni un kafejnīcas,Pašapkalpošanās līnija,prepTable,120,60,75,0,corner_counter
 Stūra letes modulis,Mēbeles,Tirdzniecības aprīkojums,Vitrīnas,cornerUnit,60,60,45,0,corner_counter_module
 Stūra maizes plaukts,Mēbeles,Tirdzniecības aprīkojums,Vitrīnas,breadRack,100,40,180,0,corner_bread_rack
@@ -1227,7 +1227,7 @@ Vienas durvju augšējais skapis,Mēbeles,Garderobe un priekšnams,Drēbju skapj
 Vienas durvju drēbju skapis,Mēbeles,Garderobe un priekšnams,Drēbju skapji,wardrobe,60,60,220,0,single_door_wardrobe
 Vienas durvju medicīnas skapis,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,cabinet,100,40,180,0,single_door_medical_cabinet
 Vienas durvju stūra modulis,Mēbeles,Garderobe un priekšnams,Stūra skapji,cornerUnit,90,90,85,0,single_door_corner_unit
-Vienguļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,100,210,90,0,single_bed
+Vienguļamā gulta,Mēbeles,Dzīvojamā istaba un guļamistaba,Gultas,bedF,96,206,90,0,single_bed
 Vienreizējā apģērba skapis,Mēbeles,Medicīnas aprīkojums,Medicīnas mēbeles,cabinet,100,40,180,0,disposable_garment_cabinet
 Viens aizkars,Mēbeles,Interjers un dekors,Aizkari un žalūzijas,curtain,200,12,260,0,single_drape
 Viens āķis,Mēbeles,Garderobe un priekšnams,Pakaramie un āķi,coatRack,30,10,10,100,single_hook

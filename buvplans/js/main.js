@@ -357,7 +357,9 @@ function renderProps() {
       const fromSill = obj.fromSill && nearestWindow(f, obj);
       h += `<div class="fields">${txt('Nosaukums', 'name', obj.name || def?.name || '')}`;
       if (isScreen(obj)) h += num('Ekrāna diagonāle', 'diag', obj.diag ?? tvDiagonal(obj.w), { unit: '″', min: 10 });
-      if (!point) h += num('Garums', 'w', obj.w, { min: 1 }) + num('Platums', 'd', obj.d, { min: 1 }) + num('Augstums', 'h', obj.h, { min: 1 });
+      // w — platums gar sienu (priekšpuse), d — dziļums; gultām d ir gultas garums
+      const lenWord = /bed|bunk/.test(def?.sym || '') ? 'Garums' : 'Dziļums';
+      if (!point) h += num('Platums', 'w', obj.w, { min: 1 }) + num(lenWord, 'd', obj.d, { min: 1 }) + num('Augstums', 'h', obj.h, { min: 1 });
       if (def?.electric) h += chk('Augstums no palodzes', 'fromSill', !!fromSill);
       h += fromSill ? num('Augstums no palodzes', 'sillElev', (obj.elev || 0) - windowSillHeight(fromSill.opening)) : num('Augstums no grīdas', 'elev', obj.elev || 0, { min: 0 });
       h += num('Pagrieziena leņķis', 'rot', obj.rot || 0, { unit: '°', step: 15 });
