@@ -5,6 +5,7 @@ import { categoryOf } from './catalog.js';
 import { floorStats, specification, openingSchedule, fmt } from './calc.js';
 import { roomElevations, elevationSVG } from './elevations.js';
 import { statusLabel } from './model.js';
+import { fmtNum, unitName } from './units.js';
 
 const ROOM_FIELD = { floor: 'floorFinish', ceiling: 'ceiling', screed: 'screed', waterFloor: 'waterFloor', plasterCeiling: 'plasterCeiling' };
 
@@ -84,12 +85,13 @@ export function buildAlbum(project, { enabled, units = 'cm', snapshot }) {
     for (const f of floors) {
       const spec = specification(f);
       const ops = openingSchedule(f);
-      const srows = spec.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td class="n">${s.w}×${s.d}×${s.h}</td><td class="n">${s.count}</td></tr>`).join('');
-      const orows = ops.map((o, i) => `<tr><td>${i + 1}</td><td>${o.type}</td><td class="n">${o.width}×${o.height}</td><td class="n">${o.sill}</td></tr>`).join('');
+      const L = (cm) => fmtNum(cm, units);
+      const srows = spec.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td class="n">${L(s.w)}×${L(s.d)}×${L(s.h)}</td><td class="n">${s.count}</td></tr>`).join('');
+      const orows = ops.map((o, i) => `<tr><td>${i + 1}</td><td>${o.type}</td><td class="n">${L(o.width)}×${L(o.height)}</td><td class="n">${L(o.sill)}</td></tr>`).join('');
       sheets.push({
         title: `${f.name} — specifikācija`,
-        body: `<div class="sheet-cols"><table class="sheet-table"><thead><tr><th>Nr.</th><th>Priekšmets</th><th class="n">Izmēri, cm</th><th class="n">Skaits</th></tr></thead><tbody>${srows}</tbody></table>
-        <table class="sheet-table"><thead><tr><th>Nr.</th><th>Aile</th><th class="n">P×A, cm</th><th class="n">Palodze, cm</th></tr></thead><tbody>${orows}</tbody></table></div>`,
+        body: `<div class="sheet-cols"><table class="sheet-table"><thead><tr><th>Nr.</th><th>Priekšmets</th><th class="n">Izmēri, ${unitName(units)}</th><th class="n">Skaits</th></tr></thead><tbody>${srows}</tbody></table>
+        <table class="sheet-table"><thead><tr><th>Nr.</th><th>Aile</th><th class="n">P×A, ${unitName(units)}</th><th class="n">Palodze, ${unitName(units)}</th></tr></thead><tbody>${orows}</tbody></table></div>`,
       });
     }
   }

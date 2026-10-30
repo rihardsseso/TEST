@@ -59,7 +59,7 @@ export function elevationSVG(el, units = 'cm') {
   const pad = 46, k = 1;
   const W = el.length * k, H = el.height * k;
   const vw = W + pad * 2, vh = H + pad * 2;
-  const f = (v) => (units === 'mm' ? Math.round(v * 10) : units === 'm' ? (v / 100).toFixed(2) : Math.round(v));
+  const f = (v) => (units === 'mm' ? Math.round(v * 10) : units === 'm' ? (v / 100).toFixed(2) : units === 'in' ? (v / 2.54).toFixed(1) : Math.round(v));
   const Y = (y) => pad + H - y * k;
   const fs = Math.round(Math.max(11, Math.min(18, vw / 34)));
   let s = `<svg class="elev-svg" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sienas skats ${el.label}" style="--fs:${fs}px">`;

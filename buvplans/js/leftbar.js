@@ -4,16 +4,18 @@ import { GROUPS, ITEMS, FINISHES, LINE_TYPES, ZONE_TYPES } from './catalog-data.
 import { byKind, drawItem2D } from './catalog.js';
 import { WALL_MATERIALS, wallMaterial, drawMaterialSwatch } from './walls.js';
 import { icon, hasIcon } from './icons.js';
+import { fromUnit, inputValue, unitStep, unitNudge, unitName, fmtNum } from './units.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtT = (t) => String(t).replace('.', ',');
 const SEARCH_STAGES = new Set(['furniture', 'santeh', 'radiators', 'light', 'sockets', 'security', 'conditioners', 'ventilation', 'init', 'create_walls']);
 
 export function createLeftbar({ editor, onHelp, onShield, status }) {
   const bar = $('#leftbar'), fly = $('#flyout'), cfg = $('#configPanel'), preview = $('#itemPreview');
   let stage = null, active = null;
+  const U = () => editor.settings.units;
+  const L = (cm) => fmtNum(cm, U());
   bar.addEventListener('mouseleave', () => bar.classList.remove('rest'));
 
   function drawThumb(cv, def, mono) {
@@ -168,7 +170,7 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
   function showPreview(spec, row) {
     const def = byKind(spec.item);
     if (!def) return;
-    preview.innerHTML = `<canvas width="200" height="140"></canvas><b>${esc(def.name)}</b><span>${def.w} × ${def.d} × ${def.h} cm${def.elev ? ` · ${def.elev} cm no grīdas` : ''}</span>`;
+    preview.innerHTML = `<canvas width="200" height="140"></canvas><b>${esc(def.name)}</b><span>${L(def.w)} × ${L(def.d)} × ${L(def.h)} ${unitName(U())}${def.elev ? ` · ${L(def.elev)} ${unitName(U())} no grīdas` : ''}</span>`;
     drawThumb($('canvas', preview), def, false);
     preview.hidden = false;
     const ws = $('.workspace').getBoundingClientRect(), r = row.getBoundingClientRect(), f = fly.getBoundingClientRect();
@@ -210,7 +212,8 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
   }
 
   // ---------- KONFIGURĀCIJA ----------
-  const numField = (label, key, value, unit = 'cm') => `<label class="cfg-field"><span>${label}</span><input type="number" inputmode="decimal" data-k="${key}" value="${value ?? ''}" step="0.5"><em>${unit}</em></label>`;
+  // Visi konfigurācijas skaitļi ir garumi: glabājas cm, rādās izvēlētajās vienībās.
+  const numField = (label, key, value) => `<label class="cfg-field"><span>${label}</span><input type="number" inputmode="decimal" data-k="${key}" value="${value == null ? '' : inputValue(value, U())}" step="${unitStep(U())}"><em>${unitName(U())}</em></label>`;
 
   function showConfig() {
     if (!active) {
@@ -226,8 +229,8 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
       const mat = wallMaterial(matId);
       const t = fixed ? spec.thickness ?? mat?.def : s.wallThickness;
       const presets = mat?.thick?.length ? mat.thick : [5, 8, 10, 12, 15, 20];
-      h += `<div class="cfg-thick"><span>Biezums:</span><div class="cfg-step"><button type="button" data-step="-1" aria-label="Mazāk">−</button><input type="number" inputmode="decimal" id="cfgThick" value="${t}" step="0.5"><em>cm</em><button type="button" data-step="1" aria-label="Vairāk">+</button></div></div>
-        <div class="cfg-presets">${presets.map((p) => `<button type="button" data-preset="${p}" class="${+p === +t ? 'on' : ''}">${fmtT(p)}</button>`).join('')}</div>
+      h += `<div class="cfg-thick"><span>Biezums:</span><div class="cfg-step"><button type="button" data-step="-1" aria-label="Mazāk">−</button><input type="number" inputmode="decimal" id="cfgThick" value="${inputValue(t, U())}" step="${unitStep(U())}"><em>${unitName(U())}</em><button type="button" data-step="1" aria-label="Vairāk">+</button></div></div>
+        <div class="cfg-presets">${presets.map((p) => `<button type="button" data-preset="${p}" class="${+p === +t ? 'on' : ''}">${L(p)}</button>`).join('')}</div>
         <label class="cfg-field wide"><span>Materiāli:</span><select id="cfgMat">${WALL_MATERIALS.map((m) => `<option value="${m.id}" ${m.id === matId ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>
         <canvas class="cfg-swatch" width="180" height="26"></canvas>`;
       if (!fixed) h += `<div class="cfg-colors">${['white', 'grey', 'black'].map((c) => `<button type="button" class="dot ${c} ${(s.wallColor || 'white') === c ? 'on' : ''}" data-color="${c}" aria-label="${c}"></button>`).join('')}</div>`;
@@ -252,7 +255,7 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
       else if (lt.duct) {
         h += `<label class="cfg-field wide"><span>Caurules tips:</span><select data-k="round"><option value="0" ${!spec.round ? 'selected' : ''}>Plakana</option><option value="1" ${spec.round ? 'selected' : ''}>Apaļa</option></select></label>`
           + numField('Platums:', 'width', spec.width ?? 12) + numField('Augstums:', 'height', spec.height ?? 6)
-          + `<div class="cfg-presets wide">${[['20,4 × 6', 20.4, 6, 0], ['12 × 6', 12, 6, 0], ['10 × 5,5', 10, 5.5, 0], ['Ø10', 10, 10, 1], ['Ø12,5', 12.5, 12.5, 1], ['Ø15', 15, 15, 1], ['Ø16', 16, 16, 1]].map(([n, w, hh, r]) => `<button type="button" data-duct="${w}|${hh}|${r}">${n}</button>`).join('')}</div>`;
+          + `<div class="cfg-presets wide">${[[20.4, 6, 0], [12, 6, 0], [10, 5.5, 0], [10, 10, 1], [12.5, 12.5, 1], [15, 15, 1], [16, 16, 1]].map(([w, hh, r]) => `<button type="button" data-duct="${w}|${hh}|${r}">${r ? `Ø${L(w)}` : `${L(w)} × ${L(hh)}`}</button>`).join('')}</div>`;
       } else {
         h += `<p class="cfg-note"><i class="cfg-line" style="--c:${lt.color || '#d93025'}"></i>${esc(spec.label || lt.name || spec.name)}</p>
           <div class="cfg-seg"><span>Zīmēšanas veids:</span><button type="button" class="on">līnijas</button></div>`;
@@ -284,8 +287,8 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
       showConfig();
       editor.requestRender();
     };
-    $$('[data-step]', cfg).forEach((b) => b.addEventListener('click', () => setThick(+$('#cfgThick').value + +b.dataset.step)));
-    $('#cfgThick', cfg)?.addEventListener('change', (e) => setThick(parseFloat(e.target.value) || 1));
+    $$('[data-step]', cfg).forEach((b) => b.addEventListener('click', () => setThick(fromUnit(+$('#cfgThick').value + b.dataset.step * unitNudge(U()), U()))));
+    $('#cfgThick', cfg)?.addEventListener('change', (e) => setThick(fromUnit(parseFloat(e.target.value) || unitNudge(U()), U())));
     $$('[data-preset]', cfg).forEach((b) => b.addEventListener('click', () => setThick(parseFloat(b.dataset.preset))));
     $('#cfgMat', cfg)?.addEventListener('change', (e) => {
       const m = wallMaterial(e.target.value);
@@ -300,7 +303,7 @@ export function createLeftbar({ editor, onHelp, onShield, status }) {
       showConfig();
     }));
     $$('input[data-k], select[data-k]', cfg).forEach((inp) => inp.addEventListener('change', () => {
-      const k = inp.dataset.k, v = inp.tagName === 'SELECT' ? inp.value === '1' : parseFloat(inp.value);
+      const k = inp.dataset.k, v = inp.tagName === 'SELECT' ? inp.value === '1' : fromUnit(parseFloat(inp.value), U());
       if (inp.tagName !== 'SELECT' && !Number.isFinite(v)) return;
       if (active.spec.t === 'item') {
         editor.state.over = { ...(editor.state.over || {}), [k]: v };

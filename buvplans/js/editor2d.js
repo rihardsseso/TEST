@@ -12,10 +12,11 @@ import { byKind, drawItem2D, isPoint, categoryOf } from './catalog.js';
 import { layerMode, wallMode } from './stages.js';
 import { wallMaterial } from './walls.js';
 import { LINE_TYPES, ZONE_TYPES, FINISHES } from './catalog-data.js';
+import { fromUnit, unitName } from './units.js';
 
 export const TOOLS = {
   select: { name: 'Atlasīt', key: 'v', hint: 'Klikšķis atlasa objektu, vilkšana pārvieto. Tukšā vietā vilkšana bīda plānu.' },
-  wall: { name: 'Zīmēt sienu', key: 'w', hint: 'Klikšķini sienas sākumu un katru stūri. Ieraksti garumu cm un Enter. Dubultklikšķis vai Esc pabeidz. Shift — bez leņķa piesaistes.' },
+  wall: { name: 'Zīmēt sienu', key: 'w', hint: 'Klikšķini sienas sākumu un katru stūri. Ieraksti garumu ar cipariem un Enter. Dubultklikšķis vai Esc pabeidz. Shift — bez leņķa piesaistes.' },
   rect: { name: 'Taisnstūris', key: 'k', hint: 'Velc taisnstūri — tiks izveidotas četras sienas.' },
   door: { name: 'Durvis', key: 'd', hint: 'Klikšķini uz sienas, lai ievietotu durvis.' },
   window: { name: 'Logs', key: 'l', hint: 'Klikšķini uz sienas, lai ievietotu logu.' },
@@ -232,7 +233,7 @@ export class Editor2D {
       ctx.globalAlpha = 1;
       ctx.lineCap = 'butt';
       const L = dist(st.anchor, c.p);
-      label(b, this.typed ? `${this.typed}▌ cm` : `${fmtLen(L, this.settings.units)}  ${Math.round(normAngle(Math.atan2(c.p.y - st.anchor.y, c.p.x - st.anchor.x)))}°`);
+      label(b, this.typed ? `${this.typed}▌ ${unitName(this.settings.units)}` : `${fmtLen(L, this.settings.units)}  ${Math.round(normAngle(Math.atan2(c.p.y - st.anchor.y, c.p.x - st.anchor.x)))}°`);
     }
     if ((this.tool === 'rect' || (this.tool === 'zone' && !st.points?.length)) && st.start && c) {
       const a = S(st.start), b = S(c.p);
@@ -734,7 +735,7 @@ export class Editor2D {
 
   applyTypedLength() {
     const st = this.state;
-    const L = parseFloat(this.typed.replace(',', '.'));
+    const L = fromUnit(parseFloat(this.typed.replace(',', '.')), this.settings.units);
     if (!st.anchor || !(L > 0) || !this.cursor) return;
     const dir = norm(sub(this.cursor.p, st.anchor));
     if (!dir.x && !dir.y) return;

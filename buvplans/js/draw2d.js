@@ -7,6 +7,7 @@ import { fmt } from './calc.js';
 import { wallFaceDims } from './dims.js';
 import { wallMaterial, paintMaterial } from './walls.js';
 import { LINE_TYPES, ZONE_TYPES, FINISHES } from './catalog-data.js';
+import { unitName } from './units.js';
 
 export const THEME = {
   bg: '#ffffff', grid: '#eef0f2', gridMajor: '#d9dde1', ink: '#222222', muted: '#555555', line: '#2b2b2b',
@@ -410,7 +411,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     if (mode === 'active' && (show.itemDims || show.heights)) {
       ctx.font = `9px ${t.font}`;
       ctx.fillStyle = t.dim;
-      const txt = [show.itemDims && !isPoint(it) ? `${Math.round(it.w)}×${Math.round(it.d)}` : '', show.heights && it.elev ? `h=${Math.round(it.elev)}` : ''].filter(Boolean).join(' ');
+      const txt = [show.itemDims && !isPoint(it) ? `${fmtLen(it.w, opts.units)}×${fmtLen(it.d, opts.units)}` : '', show.heights && it.elev ? `h=${fmtLen(it.elev, opts.units)}` : ''].filter(Boolean).join(' ');
       if (txt) ctx.fillText(txt, p.x, p.y + Math.max(sw, sd) / 2 + 8);
     }
     if (isSel('items', it.id) || isHov('items', it.id)) {
@@ -473,7 +474,7 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     if (fd) {
       ctx.font = `10px ${t.font}`;
       ctx.fillStyle = t.ink;
-      ctx.fillText(fd.name + (stage.roomFill === 'screed' && r.screedLevel ? ` · ${r.screedLevel} cm` : ''), c.x, c.y + 32);
+      ctx.fillText(fd.name + (stage.roomFill === 'screed' && r.screedLevel ? ` · ${fmtLen(r.screedLevel, opts.units)} ${unitName(opts.units)}` : ''), c.x, c.y + 32);
     }
   });
 

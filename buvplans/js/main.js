@@ -15,6 +15,7 @@ import { createShield } from './shield.js';
 import { sampleProject } from './sample.js';
 import * as storage from './storage.js';
 import { add, mul } from './geometry.js';
+import { toUnit, fromUnit, inputValue, unitStep, unitName, fmtNum } from './units.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -270,7 +271,15 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 // ---------- īpašību panelis ----------
-const num = (label, key, value, opts = {}) => `<label class="field"><span>${label}</span><input type="number" inputmode="decimal" data-k="${key}" value="${Math.round((value ?? 0) * 10) / 10}" step="${opts.step || 1}" ${opts.min !== undefined ? `min="${opts.min}"` : ''}><em>${opts.unit ?? 'cm'}</em></label>`;
+// Garumi (lauki bez `opts.unit`) glabājas cm, bet rādās un ievadās apakšā izvēlētajās vienībās.
+const U = () => editor.settings.units;
+const num = (label, key, value, opts = {}) => {
+  const len = opts.unit === undefined;
+  const v = len ? inputValue(value ?? 0, U()) : Math.round((value ?? 0) * 10) / 10;
+  const min = opts.min === undefined ? '' : `min="${len ? toUnit(opts.min, U()) : opts.min}"`;
+  return `<label class="field"><span>${label}</span><input type="number" inputmode="decimal" data-k="${key}" ${len ? 'data-len="1"' : ''} value="${v}" step="${len ? unitStep(U()) : opts.step || 1}" ${min}><em>${len ? unitName(U()) : opts.unit}</em></label>`;
+};
+const lenText = (cm) => `${fmtNum(cm, U())} ${unitName(U())}`;
 const txt = (label, key, value) => `<label class="field wide"><span>${label}</span><input type="text" data-k="${key}" value="${esc(value)}"></label>`;
 const sel = (label, key, value, options) => `<label class="field wide"><span>${label}</span><select data-k="${key}">${options.map(([v, n]) => `<option value="${v}" ${String(v) === String(value ?? '') ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`;
 const chk = (label, key, value) => `<label class="check"><input type="checkbox" data-k="${key}" ${value ? 'checked' : ''}><span>${label}</span></label>`;
@@ -297,10 +306,10 @@ function renderProps() {
   if (s.kind === 'walls') {
     const mat = wallMaterial(obj.material);
     if (obj.kind === 'virtual') {
-      h += `<p class="hint">Telpas zonējuma līnija sadala telpu zonās; tā neveido sienu.</p><dl class="stats">${stat('Garums', `${Math.round(wallLength(obj))} cm`)}</dl><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
+      h += `<p class="hint">Telpas zonējuma līnija sadala telpu zonās; tā neveido sienu.</p><dl class="stats">${stat('Garums', lenText(wallLength(obj)))}</dl><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
     } else {
-      h += `<div class="fields">${num('Garums', 'len', wallLength(obj), { min: 1 })}<label class="field"><span>Biezums</span><input type="number" inputmode="decimal" data-k="thickness" value="${obj.thickness}" min="0.5" step="0.5" list="thickList"><em>cm</em></label>
-        <datalist id="thickList">${(mat?.thick || []).map((t) => `<option value="${t}"></option>`).join('')}</datalist>${num('Augstums', 'height', obj.height, { min: 10 })}
+      h += `<div class="fields">${num('Garums', 'len', wallLength(obj), { min: 1 })}<label class="field"><span>Biezums</span><input type="number" inputmode="decimal" data-k="thickness" data-len="1" value="${inputValue(obj.thickness, U())}" min="${toUnit(0.5, U())}" step="${unitStep(U())}" list="thickList"><em>${unitName(U())}</em></label>
+        <datalist id="thickList">${(mat?.thick || []).map((t) => `<option value="${inputValue(t, U())}"></option>`).join('')}</datalist>${num('Augstums', 'height', obj.height, { min: 10 })}
         ${sel('Materiāli', 'material', obj.material || '', [['', '— nav norādīts —'], ...WALL_MATERIALS.map((x) => [x.id, x.name])])}
         ${sel('Krāsa', 'color', obj.color || '', [['', 'Pēc materiāla (balta)'], ['grey', 'Pelēka'], ['black', 'Melna']])}
         ${sel('Nesošā / starpsiena', 'kind', wallKind(obj), [['bearing', 'Nesošā / ārsiena'], ['partition', 'Starpsiena'], ['balcony', 'Balkona margas']])}
@@ -333,7 +342,7 @@ function renderProps() {
       if (!point) h += `<label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#cccccc'}"></label>`;
       h += `${txt('Komentārs', 'comment', obj.comment || '')}</div>
         <div class="row">${btn('Pagriezt 90°', 'rotate')}${point ? '' : btn('Spoguļot', 'mirror')}${btn('Izveidot kopiju', 'duplicate')}${btn('Dzēst', 'delete', 'danger')}</div>
-        <p class="hint">R — pagriezt, bultiņas — pabīdīt (Shift — pa 10 cm), Alt vilkšanas laikā — bez magnēta.</p>`;
+        <p class="hint">R — pagriezt, bultiņas — pabīdīt (Shift — pa ${lenText(10)}), Alt vilkšanas laikā — bez magnēta.</p>`;
     }
   } else if (s.kind === 'rooms') {
     const r = roomStats(f, obj);
@@ -351,7 +360,7 @@ function renderProps() {
     h += `<div class="fields">${txt('Komentāra teksts', 'text', obj.text)}${num('Fonta izmērs', 'size', obj.size || 14, { unit: 'px', min: 8 })}
       <label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#222222'}"></label>${chk('Rāmis', 'frame', obj.frame)}</div><div class="row">${btn('Izveidot kopiju', 'duplicate')}${btn('Dzēst', 'delete', 'danger')}</div>`;
   } else if (s.kind === 'dims') {
-    h += `<div class="fields">${num('Atkāpe', 'offset', obj.offset || 0)}<label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#333333'}"></label></div><dl class="stats">${stat('Garums', `${Math.round(Math.hypot(obj.b.x - obj.a.x, obj.b.y - obj.a.y))} cm`)}</dl><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
+    h += `<div class="fields">${num('Atkāpe', 'offset', obj.offset || 0)}<label class="field wide"><span>Krāsa</span><input type="color" data-k="color" value="${obj.color || '#333333'}"></label></div><dl class="stats">${stat('Garums', lenText(Math.hypot(obj.b.x - obj.a.x, obj.b.y - obj.a.y)))}</dl><div class="row">${btn('Dzēst', 'delete', 'danger')}</div>`;
   } else if (s.kind === 'lines') {
     const def = LINE_TYPES[obj.type] || {};
     const L = obj.points.reduce((q, p, i) => (i ? q + Math.hypot(p.x - obj.points[i - 1].x, p.y - obj.points[i - 1].y) : 0), 0);
@@ -383,7 +392,7 @@ function bindFields(el, onChange) {
     input.addEventListener(input.type === 'range' ? 'input' : 'change', () => {
       const v = input.type === 'checkbox' ? input.checked : input.type === 'number' || input.type === 'range' ? parseFloat(input.value) : input.value;
       if ((input.type === 'number' || input.type === 'range') && !Number.isFinite(v)) return;
-      onChange(input.dataset.k, v);
+      onChange(input.dataset.k, input.dataset.len ? fromUnit(v, U()) : v);
     });
   });
   $$('[data-close]', el).forEach((b) => b.addEventListener('click', () => {
@@ -720,7 +729,13 @@ $('#unitsSel').addEventListener('change', (e) => {
   editor.settings.units = e.target.value;
   saveSettings();
   editor.requestRender();
+  renderProps();
+  leftbar.showConfig();
+  if (!$('#settingsPop').hidden) renderSettings();
+  if (!$('#bgPop').hidden) renderBg();
   if (currentView === 'elev') renderElev();
+  if (currentView === 'calc') renderCalc();
+  if (currentView === 'album') renderAlbum();
 });
 $('#undoBtn').addEventListener('click', () => store.undo());
 $('#redoBtn').addEventListener('click', () => store.redo());
@@ -796,8 +811,9 @@ function renderCalc() {
   for (const { f, st } of all) {
     const t = st.totals;
     const rows = st.rooms.map((r) => `<tr><td>${esc(r.name)}</td><td class="n">${fmt(r.area)}</td><td class="n">${fmt(r.perimeter)}</td><td class="n">${fmt(r.height)}</td><td class="n">${fmt(r.volume)}</td><td class="n">${fmt(r.wallNet)}</td><td class="n">${fmt(r.ceiling)}</td><td class="n">${fmt(r.baseboard)}</td><td class="n">${fmt(r.windowSills)}</td><td class="n">${r.doors}/${r.windows}</td><td class="n">${r.sockets}/${r.switches}/${r.lights}</td><td>${esc(r.floorFinish)}</td></tr>`).join('');
-    const spec = specification(f).map((s) => `<tr><td>${esc(s.name)}</td><td class="n">${s.w}×${s.d}×${s.h}</td><td class="n">${s.count}</td></tr>`).join('');
-    const ops = openingSchedule(f).map((o) => `<tr><td>${o.type}</td><td class="n">${o.width}×${o.height}</td><td class="n">${o.sill}</td></tr>`).join('');
+    const L = (cm) => fmtNum(cm, U());
+    const spec = specification(f).map((s) => `<tr><td>${esc(s.name)}</td><td class="n">${L(s.w)}×${L(s.d)}×${L(s.h)}</td><td class="n">${s.count}</td></tr>`).join('');
+    const ops = openingSchedule(f).map((o) => `<tr><td>${o.type}</td><td class="n">${L(o.width)}×${L(o.height)}</td><td class="n">${L(o.sill)}</td></tr>`).join('');
     const layouts = groupFloors(groupOf(f));
     const label = `${esc(f.name)}${layouts.length > 1 ? ` · ${layouts.indexOf(f) + 1}. variants` : ''}`;
     h += `<section class="calc-floor"><h2>${label}${f.variant ? ' <span class="pill">variants</span>' : ''}</h2>
@@ -805,8 +821,8 @@ function renderCalc() {
       <tbody>${rows || '<tr><td colspan="12" class="empty">Šajā stāvā vēl nav telpu. Uzzīmē sienas.</td></tr>'}</tbody>
       <tfoot><tr><td>Kopā</td><td class="n">${fmt(t.area)}</td><td></td><td></td><td class="n">${fmt(t.volume)}</td><td class="n">${fmt(t.wallNet)}</td><td class="n">${fmt(t.ceiling)}</td><td class="n">${fmt(t.baseboard)}</td><td></td><td class="n">${t.doors}/${t.windows}</td><td class="n">${t.sockets}/${t.switches}/${t.lights}</td><td></td></tr></tfoot></table></div>
       ${materialsTable(f)}${finishTable(f)}${linesTable(f)}
-      <div class="calc-cols"><div class="table-wrap"><h3>Mēbeles un iekārtas</h3><table class="data"><thead><tr><th>Nosaukums</th><th class="n">Izmēri cm</th><th class="n">Skaits</th></tr></thead><tbody>${spec || '<tr><td colspan="3" class="empty">Nav priekšmetu</td></tr>'}</tbody></table></div>
-      <div class="table-wrap"><h3>Ailes</h3><table class="data"><thead><tr><th>Veids</th><th class="n">P×A cm</th><th class="n">Palodze cm</th></tr></thead><tbody>${ops || '<tr><td colspan="3" class="empty">Nav aiļu</td></tr>'}</tbody></table>
+      <div class="calc-cols"><div class="table-wrap"><h3>Mēbeles un iekārtas</h3><table class="data"><thead><tr><th>Nosaukums</th><th class="n">Izmēri ${unitName(U())}</th><th class="n">Skaits</th></tr></thead><tbody>${spec || '<tr><td colspan="3" class="empty">Nav priekšmetu</td></tr>'}</tbody></table></div>
+      <div class="table-wrap"><h3>Ailes</h3><table class="data"><thead><tr><th>Veids</th><th class="n">P×A ${unitName(U())}</th><th class="n">Palodze ${unitName(U())}</th></tr></thead><tbody>${ops || '<tr><td colspan="3" class="empty">Nav aiļu</td></tr>'}</tbody></table>
       <dl class="stats">${stat('Sienu garums (pēc remonta)', `${fmt(t.wallLength)} m`)}${stat('Mūra apjoms', `${fmt(t.wallVolume)} m³`)}${stat('Demontējamās sienas', `${fmt(t.demolishLength)} m · ${fmt(t.demolishVolume)} m³`)}${stat('Jaunās starpsienas', `${fmt(t.newLength)} m · ${fmt(t.newArea)} m²`)}${stat('TV / datortīkla rozetes', t.weak)}${stat('Ūdens un kanalizācijas izvadi', t.water)}</dl></div></div></section>`;
   }
   const el = $('#calcBody');
@@ -817,11 +833,10 @@ function renderCalc() {
     else copyText(csv, 'Tabula nokopēta — ielīmē to izklājlapā');
   }));
 }
-const fmtT = (t) => String(t).replace('.', ',');
 function materialsTable(f) {
-  const rows = wallMaterials(f).map((r) => `<tr><td>${esc(r.name)}</td><td class="n">${fmtT(r.thickness)}</td><td class="n">${fmt(r.length)}</td><td class="n">${fmt(r.area)}</td><td class="n">${fmt(r.volume, 3)}</td><td class="n">${r.units ? `~${r.units.toLocaleString('lv-LV')}` : '–'}</td></tr>`).join('');
+  const rows = wallMaterials(f).map((r) => `<tr><td>${esc(r.name)}</td><td class="n">${fmtNum(r.thickness, U())}</td><td class="n">${fmt(r.length)}</td><td class="n">${fmt(r.area)}</td><td class="n">${fmt(r.volume, 3)}</td><td class="n">${r.units ? `~${r.units.toLocaleString('lv-LV')}` : '–'}</td></tr>`).join('');
   if (!rows) return '';
-  return `<div class="table-wrap calc-mat"><h3>Sienu materiāli</h3><table class="data"><thead><tr><th>Materiāls</th><th class="n">Biezums cm</th><th class="n">Garums m</th><th class="n">Laukums bez ailēm m²</th><th class="n">Apjoms m³</th><th class="n">Bloki / ķieģeļi gab.</th></tr></thead><tbody>${rows}</tbody></table>
+  return `<div class="table-wrap calc-mat"><h3>Sienu materiāli</h3><table class="data"><thead><tr><th>Materiāls</th><th class="n">Biezums ${unitName(U())}</th><th class="n">Garums m</th><th class="n">Laukums bez ailēm m²</th><th class="n">Apjoms m³</th><th class="n">Bloki / ķieģeļi gab.</th></tr></thead><tbody>${rows}</tbody></table>
     <p class="hint">Bloku skaits ir aptuvens — pēc bloka skata izmēra ar šuvi, bez rezerves griezumiem.</p></div>`;
 }
 function finishTable(f) {
