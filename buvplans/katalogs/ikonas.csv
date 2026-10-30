@@ -42,21 +42,21 @@ dimmer,1,Slēdži: Dimmeris
 din,1,Sadales skapis: Pievienot DIN sliedi
 door,2,Pamatplāns: Durvis un ailes · Starpsienas: Durvis un ailes
 drain,1,Kondicionēšana: Drenāžas cauruļvads
+drywallBox,1,Starpsienas: Ģipškartona kārba
 dropBlue,5,Pamatplāns › Inženierkomunikācijas: Aukstā ūdens stāvvads · Starpsienas › Inženierkomunikācijas: Aukstā ūdens stāvvads · Ūdensapgāde: Aukstā ūdens izvads · Ūdensapgāde: Karstais + aukstais ūdens · Ūdensapgāde: Aukstais ūdens + kanalizācija
 dropBrown,3,Pamatplāns › Inženierkomunikācijas: Kanalizācijas stāvvads · Starpsienas › Inženierkomunikācijas: Kanalizācijas stāvvads · Ūdensapgāde: Kanalizācijas izvads
 dropRed,5,"Pamatplāns › Inženierkomunikācijas: Karstā ūdens stāvvads · Starpsienas › Inženierkomunikācijas: Karstā ūdens stāvvads · Ūdensapgāde: Karstā ūdens izvads · Ūdensapgāde: Aukstais, karstais ūdens + kanalizācija · Ūdensapgāde: Karstais ūdens + kanalizācija"
-drywallBox,1,Starpsienas: Ģipškartona kārba
 ductExhaust,1,Ventilācija: Nosūces gaisa vads
 ductSupply,1,Ventilācija: Pieplūdes gaisa vads
+eye,1,Kreisā josla
 eraser,7,Demontāža: Noņemt demontāžu · Grīdas segumi: Noņemt apdari · Sienu apdare: Noņemt apdari · Griesti: Noņemt apdari · Hidroizolācija: Noņemt hidroizolāciju · Izolācija: Noņemt izolāciju · Apmetums: Noņemt apmetumu
 extinguisher,1,Drošība: Ugunsdrošības aprīkojums
-eye,1,Kreisā josla
 factory,1,Mēbeles: Rūpnieciskās iekārtas
 fan,1,Ventilācija: Ventilatori
 faucet,1,Santehnika: Jaucējkrāni un dušas
 figure,1,Kreisā josla
-grille,1,Ventilācija: Restes un difuzori
 gym,1,Mēbeles: Sporta inventārs
+grille,1,Ventilācija: Restes un difuzori
 heat,1,Siltās grīdas: Kabeļa grīdas apsilde
 heatIR,1,Siltās grīdas: Infrasarkanā grīdas apsilde
 heatWall,1,Siltās grīdas: Apsildāma siena (kabelis)
@@ -87,8 +87,8 @@ parquet,1,"Grīdas segumi: Dēļi, masīvkoks un parkets"
 partitionBrick,1,Starpsienas: Ķieģeļu starpsiena
 partitionDry,1,Starpsienas: Ģipškartona starpsiena
 partitionFoam,1,Starpsienas: Putu bloku starpsiena
-partitionGlass,1,Starpsienas: Stikla starpsiena
 partitionGypsum,1,Starpsienas: Ģipša bloku starpsiena
+partitionGlass,1,Starpsienas: Stikla starpsiena
 partitionSlat,1,Starpsienas: Līstu starpsiena
 pipeBlue,2,Apkure: Atgaitas cauruļvads · Ūdensapgāde: Aukstā ūdens caurule
 pipeBrown,1,Ūdensapgāde: Kanalizācijas caurule
