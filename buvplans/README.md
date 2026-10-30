@@ -26,6 +26,9 @@ apakšējā josla ar mērvienībām, pārslēgiem, rīkiem un tālummaiņu. Visi
 | Aprēķini | Laukumi, sienas bez ailēm, materiāli un bloku skaits, apdare pa materiāliem, caurules/kabeļi metros, zonas, specifikācija; CSV |
 | Albums | Titullapa, plāns katrai lapai, kurā ir saturs, eksplikācija, 3D, sienu skati, specifikācija, sadales skapis; drukā vai saglabā PDF |
 | Eksports | .plan fails (lejupielāde/augšupielāde), PDF albums, PNG un SVG plāns |
+| Paraugi | „Parauga dzīvoklis” un „100 m² paraugtelpa” (visi logu/durvju veidi, vannas istaba, virtuve, dzīvojamā, guļamā zona, birojs, inženiertīkli); pilnais katalogs 23 plānojuma variantos — katrs priekšmets tieši vienreiz |
+| Simboli un ikonas | Pašu zīmēti: sava rīku ikona katram rīkam; specifisks plāna simbols ~1270 priekšmetiem (`js/sym-furniture.js`, `js/sym-tech.js`) |
+| Objektu iestatījumi | Logu vērtnes un palodzes, balkona durvju pildījums, grīdas flīžu izmērs un ieklāšanas raksti ar skaitu aprēķinos, grupēšana (Shift, Ctrl+G), „Mana bibliotēka”, TV diagonāle, kameras skata sektors, rozešu attālumi un vertikālās grupas, ūdens izvadu augstumi, izmēru dalīšana, sadalnes ievadi un vadu šķērsgriezumi, labā klikšķa izvēlne |
 | Stāvi un varianti | Jauns stāvs manto nesošās sienas; plānojuma variants ir neatkarīga kopija |
 
 ## Palaišana
