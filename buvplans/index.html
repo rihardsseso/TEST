@@ -63,6 +63,7 @@
       <button type="button" class="tb-mode" data-view="plan" role="tab" title="2D plāns"><svg viewBox="0 0 32 26"><rect x="3" y="3" width="26" height="20"/><path d="M3 12h9v11M12 3v5M20 3v20M20 14h9"/></svg><span>2D</span></button>
       <button type="button" class="tb-mode" data-view="elev" role="tab" title="Sienu skati"><svg viewBox="0 0 32 26"><path d="M2 23h28M4 23V6h24v17"/><rect x="8" y="10" width="7" height="13"/><rect x="18" y="9" width="7" height="6"/></svg><span>Sienas</span></button>
       <button type="button" class="tb-mode" data-view="3d" role="tab" title="3D skats"><svg viewBox="0 0 32 26"><path d="M16 2 4 8v11l12 6 12-6V8z"/><path d="M4 8l12 6 12-6M16 14v11"/></svg><span>3D</span></button>
+      <button type="button" class="tb-mode tb-ai" id="aiBtn" title="AI vizualizācija no 3D skata"><svg viewBox="0 0 32 26"><path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z"/><path d="M24 2l1 2.6 2.6 1-2.6 1L24 9l-1-2.4-2.6-1 2.6-1zM24 15l1 2.4 2.4 1-2.4 1L24 22l-1-2.6-2.4-1 2.4-1z"/></svg><span>AI</span></button>
     </div>
     <div class="tb-group">
       <button type="button" class="tb-icon" id="calcBtn" title="Laukumi, apjomi un daudzumi" aria-label="Aprēķini"><svg viewBox="0 0 24 24"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/><text x="2" y="9" font-size="6" fill="currentColor" stroke="none" font-weight="700">m²</text></svg></button>
@@ -223,6 +224,25 @@
       <div><dt>Atstarpe + vilkt</dt><dd>Bīdīt plānu</dd></div><div><dt>Ritenītis</dt><dd>Tuvināt</dd></div><div><dt>0</dt><dd>Centrēt projektu</dd></div>
       <div><dt>Labā poga (atlasē)</dt><dd>Objekta darbību izvēlne</dd></div><div><dt>Shift + klikšķis / vilkt</dt><dd>Atlasīt vairākus priekšmetus</dd></div><div><dt>Ctrl+G / Ctrl+Shift+G</dt><dd>Grupēt / atgrupēt</dd></div>
     </dl>
+  </div>
+</dialog>
+
+<dialog id="aiDialog" class="dialog dialog-wide" aria-labelledby="aiTitle">
+  <header class="dialog-head"><h2 id="aiTitle">AI vizualizācija no 3D skata</h2><button type="button" class="icon-btn" id="aiClose" aria-label="Aizvērt"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+  <div class="ai-grid">
+    <div class="ai-side">
+      <label class="field wide"><span>Ģenerators</span><select id="aiGen"></select></label>
+      <p class="hint" id="aiGenNote"></p>
+      <label class="field wide" id="aiKeyRow"><span>API atslēga (glabājas tikai šajā pārlūkā)</span><input type="password" id="aiKey" autocomplete="off" spellcheck="false"></label>
+      <label class="field wide"><span>Interjera stils</span><select id="aiStyle"></select></label>
+      <label class="field wide"><span>Papildu apraksts</span><textarea id="aiExtra" rows="3" placeholder="piem., gaišs ozolkoka parkets, zaļš samta dīvāns, vakara apgaismojums"></textarea></label>
+      <div class="row"><button type="button" class="btn primary" id="aiGo">Ģenerēt</button><button type="button" class="btn" id="aiRetake">Uzņemt skatu no jauna</button></div>
+      <p class="hint" id="aiStatus" aria-live="polite"></p>
+    </div>
+    <div class="ai-images">
+      <figure><figcaption>3D skats</figcaption><img id="aiSrc" alt="3D skats"></figure>
+      <figure><figcaption>Rezultāts</figcaption><div id="aiOut" class="ai-out"><p class="hint">Rezultāts parādīsies šeit.</p></div></figure>
+    </div>
   </div>
 </dialog>
 

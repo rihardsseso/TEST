@@ -937,3 +937,16 @@ table.data tbody tr:hover { background: rgba(245, 202, 195, 0.35); }
 .fly-del { flex: none; width: 34px; border: 0; background: none; color: #9a9a9a; font-size: 18px; cursor: pointer; }
 .fly-del:hover { color: #fff; background: #5a2b2b; }
 .fly-sec.static { cursor: default; }
+
+/* AI vizualizācija */
+.tb-ai svg { stroke: var(--p-coral-dark); }
+.dialog-wide { width: min(1100px, calc(100vw - 32px)); }
+.ai-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; margin-top: 10px; }
+.ai-side { display: grid; gap: 8px; align-content: start; }
+.ai-side textarea { width: 100%; border: 1px solid #c8c8c8; border-radius: 2px; padding: 6px 8px; resize: vertical; }
+.ai-images { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ai-images figure { margin: 0; display: grid; gap: 4px; align-content: start; }
+.ai-images figcaption { font: 700 12px var(--font-ui); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.ai-images img, .ai-out img { width: 100%; border: 1px solid var(--line); background: var(--p-cream); }
+.ai-out { min-height: 200px; display: grid; gap: 8px; align-content: start; }
+@media (max-width: 860px) { .ai-grid, .ai-images { grid-template-columns: 1fr; } }

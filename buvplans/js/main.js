@@ -16,6 +16,7 @@ import { createLeftbar } from './leftbar.js';
 import { createShield } from './shield.js';
 import { sampleProject } from './sample.js';
 import { showroomProject } from './showroom.js';
+import { GENERATORS, STYLES, buildPrompt } from './ai.js';
 import * as storage from './storage.js';
 import { add, mul, projectOnSegment } from './geometry.js';
 import { toUnit, fromUnit, inputValue, unitStep, unitName, fmtNum } from './units.js';
@@ -90,7 +91,7 @@ const VIEWS = ['plan', 'elev', '3d', 'calc', 'album'];
 let currentView = 'plan';
 function setView(v) {
   currentView = v;
-  $$('.tb-mode').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === v)));
+  $$('.tb-mode[data-view]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === v)));
   $$('.site-nav [data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === (['plan', 'elev', '3d'].includes(v) ? 'plan' : v)));
   $$('.view').forEach((el) => { el.hidden = el.dataset.view !== v; });
   root.dataset.view = v;
@@ -104,7 +105,7 @@ function setView(v) {
   if (v === 'album') renderAlbum();
   try { if (location.hash.slice(1) !== v) history.replaceState(null, '', `#${v}`); } catch { /* ignore */ }
 }
-$$('.tb-mode').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+$$('.tb-mode[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 window.addEventListener('hashchange', () => {
   const v = location.hash.slice(1);
   if (VIEWS.includes(v) && v !== currentView) setView(v);
@@ -1271,6 +1272,71 @@ function exportProject() {
   }
 }
 $('#exportClose').addEventListener('click', () => $('#exportDialog').close());
+
+// ---------- AI vizualizācija no 3D skata ----------
+let aiShot = null;
+function aiGen() { return GENERATORS.find((g) => g.id === $('#aiGen').value) || GENERATORS[0]; }
+function aiSync() {
+  const g = aiGen();
+  storage.setPref('aiGen', g.id);
+  $('#aiGenNote').innerHTML = `${esc(g.note)}${g.keyUrl ? ` <a href="${g.keyUrl}" target="_blank" rel="noopener">Iegūt atslēgu</a>` : ''}`;
+  $('#aiKeyRow').hidden = !g.api;
+  $('#aiKey').value = storage.getPref(`aiKey.${g.id}`, '') || '';
+  $('#aiGo').textContent = g.api ? 'Ģenerēt' : `Atvērt ${g.name.replace(' (vietnē)', '')}`;
+}
+async function aiCapture() {
+  if (currentView !== '3d') setView('3d');
+  const v = await ensure3D();
+  if (!v) return null;
+  v.show();
+  if (v.dirty || !v.root.children.length) v.rebuild(!v.fitted);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  aiShot = v.screenshot();
+  $('#aiSrc').src = aiShot;
+  return aiShot;
+}
+$('#aiGen').innerHTML = GENERATORS.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
+$('#aiGen').value = storage.getPref('aiGen', 'openai');
+$('#aiStyle').innerHTML = STYLES.map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
+$('#aiGen').addEventListener('change', aiSync);
+$('#aiKey').addEventListener('change', () => storage.setPref(`aiKey.${aiGen().id}`, $('#aiKey').value.trim()));
+$('#aiClose').addEventListener('click', () => $('#aiDialog').close());
+$('#aiRetake').addEventListener('click', () => { $('#aiDialog').close(); toast('Pagriez 3D skatu un vēlreiz spied „AI”.'); });
+$('#aiBtn').addEventListener('click', async () => {
+  aiSync();
+  $('#aiStatus').textContent = '';
+  if (!(await aiCapture())) return toast('3D skats nav pieejams — pārbaudi interneta savienojumu.');
+  $('#aiDialog').showModal();
+});
+$('#aiGo').addEventListener('click', async () => {
+  const g = aiGen(), prompt = buildPrompt($('#aiStyle').value, $('#aiExtra').value.trim());
+  if (!aiShot) return;
+  if (!g.api) {
+    // Ģenerators vietnē: lejupielādē attēlu, nokopē aprakstu, atver vietni
+    try { await navigator.clipboard.writeText(prompt); } catch { /* ignore */ }
+    if (!embedded) download(`${store.project.name} 3D skats.png`, await (await fetch(aiShot)).blob());
+    window.open(g.url, '_blank', 'noopener');
+    $('#aiStatus').textContent = `Apraksts nokopēts${embedded ? '' : ', 3D attēls lejupielādēts'}. Ielīmē tos ${g.name.replace(' (vietnē)', '')}.`;
+    return;
+  }
+  const key = $('#aiKey').value.trim();
+  if (!key) return ($('#aiStatus').textContent = 'Ievadi API atslēgu.');
+  storage.setPref(`aiKey.${g.id}`, key);
+  $('#aiGo').disabled = true;
+  $('#aiStatus').textContent = `Ģenerē ar ${g.name}… parasti 20–60 sekundes.`;
+  $('#aiOut').innerHTML = '<p class="hint">Ģenerē…</p>';
+  try {
+    const url = await g.api(aiShot, prompt, key);
+    $('#aiOut').innerHTML = `<img src="${url}" alt="AI vizualizācija"><div class="row"><button type="button" class="btn small" id="aiSave">Saglabāt attēlu</button></div>`;
+    $('#aiSave').addEventListener('click', () => exportImage(url, `${store.project.name} AI vizualizācija.png`));
+    $('#aiStatus').textContent = 'Gatavs.';
+  } catch (err) {
+    $('#aiOut').innerHTML = '';
+    $('#aiStatus').textContent = `Neizdevās: ${err.message || err}. ${/Failed to fetch|NetworkError/i.test(String(err)) ? 'Pārlūks vai šī lapa bloķēja pieprasījumu — atver plānotāju kā atsevišķu lapu (GitHub Pages vai lokāli).' : ''}`;
+  } finally {
+    $('#aiGo').disabled = false;
+  }
+});
 
 // ---------- projekti ----------
 function openProjects() {
