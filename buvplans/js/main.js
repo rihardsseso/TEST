@@ -13,6 +13,7 @@ import { FINISHES, LINE_TYPES, ZONE_TYPES } from './catalog-data.js';
 import { createLeftbar } from './leftbar.js';
 import { createShield } from './shield.js';
 import { sampleProject } from './sample.js';
+import { showroomProject } from './showroom.js';
 import * as storage from './storage.js';
 import { add, mul } from './geometry.js';
 import { toUnit, fromUnit, inputValue, unitStep, unitName, fmtNum } from './units.js';
@@ -1010,6 +1011,11 @@ $('#newProject').addEventListener('click', () => {
   setStage('init');
   leftbar.activate(STAGES[0].tools[0], 0);
   toast('Jauns projekts. Zīmē sienas — klikšķini stūrus, garumu var ierakstīt ar cipariem.');
+});
+$('#showroomProject').addEventListener('click', () => {
+  loadIntoEditor(storage.validateProject(showroomProject()));
+  $('#projectsDialog').close();
+  toast('100 m² paraugtelpa. Pilnais katalogs — izvēlnē „1. variants” (katra grupa savā variantā).');
 });
 $('#sampleProject').addEventListener('click', () => {
   loadIntoEditor(sampleProject());

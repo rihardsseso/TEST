@@ -2,6 +2,8 @@
 // Izmēri cm: w – platums, d – dziļums, h – augstums, elev – augstums no grīdas.
 // Pilnais katalogs (ITEMS) ir ģenerēts catalog-data.js; šeit — simboli, 3D modeļi un vecā parauga katalogs.
 import { ITEMS } from './catalog-data.js';
+import * as symFurniture from './sym-furniture.js';
+import * as symTech from './sym-tech.js';
 
 export const CATEGORIES = [
   { id: 'building', name: 'Ēkas elementi' },
@@ -562,6 +564,15 @@ const FAMILY_COLORS = {
 // Vecā kataloga kategorijas → stadijas (slānis), kurā priekšmets rediģējams.
 const LEGACY_STAGE = { building: 'init', heating: 'radiators', living: 'furniture', bedroom: 'furniture', kitchen: 'furniture', other: 'furniture', bath: 'santeh', water: 'waterplan', sockets: 'sockets', switches: 'light_connections', lighting: 'light', wiring: 'cables' };
 
+// Papildu simbolu moduļi: jaunas simbolu ģimenes un to piesaiste konkrētiem priekšmetiem.
+const ASSIGN = {};
+for (const m of [symFurniture, symTech]) {
+  Object.assign(draw, m.draw);
+  Object.assign(build, m.build);
+  Object.assign(FAMILY_COLORS, m.colors);
+  Object.assign(ASSIGN, m.assign);
+}
+
 const defCache = new Map();
 /** Priekšmeta definīcija pēc tipa (vecais katalogs vai ģenerētais ITEMS). */
 export function byKind(kind) {
@@ -570,7 +581,8 @@ export function byKind(kind) {
   if (def) def = { ...def, stage: LEGACY_STAGE[def.cat] || 'furniture' };
   else if (ITEMS[kind]) {
     const g = ITEMS[kind];
-    def = { kind, name: g.name, w: g.w, d: g.d, h: g.h, elev: g.elev, color: FAMILY_COLORS[g.fam] || '#d9d4cb', sym: g.fam, stage: g.stage, cat: g.stage, electric: g.electric, water: g.water };
+    const fam = ASSIGN[kind] || g.fam;
+    def = { kind, name: g.name, w: g.w, d: g.d, h: g.h, elev: g.elev, color: FAMILY_COLORS[fam] || FAMILY_COLORS[g.fam] || '#d9d4cb', sym: fam, stage: g.stage, cat: g.stage, electric: g.electric, water: g.water };
   }
   defCache.set(kind, def || null);
   return def || null;
