@@ -601,9 +601,9 @@ const D = {
     P(c, -w / 2, -d / 2, w / 2, -d / 2, w / 2, -d / 2 + a, -w / 2 + a, -d / 2 + a, -w / 2 + a, d / 2, -w / 2, d / 2);
     if (has(it, 'shelves')) soft(c, () => { R(c, -w / 2, -d / 2, w, a * 0.25); }, 0.7);
     if (has(it, 'reception', 'semi_circular')) { tone(c, 0.22, () => { R(c, -w / 2 + a * 0.72, -d / 2 + a * 0.72, w - a * 0.72, a * 0.28); R(c, -w / 2 + a * 0.72, -d / 2 + a, a * 0.28, d - a); }); }
-    c.save(); c.translate(-w / 2 + a * 0.42, -d / 2 + a * 0.42); c.rotate(-PI / 4);
-    tone(c, 0.55, () => RR(c, -a * 0.38, -a * 0.36, a * 0.76, a * 0.07, a * 0.03));
-    RR(c, -a * 0.28, a * 0.02, a * 0.56, a * 0.18, 1);
+    c.save(); c.translate(-w / 2 + a * 0.62, -d / 2 + a * 0.62); c.rotate(-PI / 4);
+    tone(c, 0.55, () => RR(c, -a * 0.32, -a * 0.3, a * 0.64, a * 0.07, a * 0.03));
+    RR(c, -a * 0.24, a * 0.0, a * 0.48, a * 0.16, 1);
     c.restore();
   },
   deskCurved(c, w, d, it) {
@@ -650,10 +650,10 @@ const D = {
     }
     if (has(it, 'corner')) {
       const a = m * 0.6;
-      if (has(it, 'rounded')) { c.beginPath(); c.moveTo(-w / 2, -d / 2); c.lineTo(-w / 2, d / 2); c.lineTo(-w / 2 + a, d / 2); c.ellipse(-w / 2, -d / 2, w, d, 0, PI / 2, 0, true); c.lineTo(w / 2, -d / 2 + a); c.closePath(); }
+      if (has(it, 'rounded')) { eband(c, w / 2, d / 2, w, d, a, PI, PI * 1.5); tone(c, 0.2, () => eband(c, w / 2, d / 2, w - a * 0.62, d - a * 0.62, a * 0.38, PI, PI * 1.5)); return; }
       else { c.beginPath(); c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.lineTo(w / 2, -d / 2 + a); c.lineTo(-w / 2 + a, -d / 2 + a); c.lineTo(-w / 2 + a, d / 2); c.lineTo(-w / 2, d / 2); c.closePath(); }
       c.fill(); c.stroke();
-      tone(c, 0.2, () => { if (!has(it, 'rounded')) { R(c, -w / 2 + a * 0.62, -d / 2 + a * 0.62, w - a * 0.62, a * 0.38); R(c, -w / 2 + a * 0.62, -d / 2 + a, a * 0.38, d - a); } });
+      tone(c, 0.2, () => { { R(c, -w / 2 + a * 0.62, -d / 2 + a * 0.62, w - a * 0.62, a * 0.38); R(c, -w / 2 + a * 0.62, -d / 2 + a, a * 0.38, d - a); } });
       return;
     }
     R(c, -w / 2, -d / 2, w, d);
@@ -740,8 +740,9 @@ const D = {
   slidingDoors(c, w, d, it) {
     const nm = K(it).match(/(\d)_door/), n = nm ? +nm[1] : 2;
     alongX(c, w, d, (W, H) => {
-      const s = W / n, t = H / 2;
-      for (let i = 0; i < n; i++) R(c, -W / 2 + i * s - (i ? s * 0.04 : 0), i % 2 ? -t : 0, s + (i ? s * 0.04 : 0), t);
+      const s = W / n, t = Math.min(H / 2, 4);
+      soft(c, () => L(c, -W / 2, -t, W / 2, -t, W / 2, t, -W / 2, t, -W / 2, -t), 0.4);
+      for (let i = 0; i < n; i++) R(c, -W / 2 + i * s - (i ? s * 0.06 : 0), i % 2 ? -t : 0, s + (i ? s * 0.06 : 0), t);
     });
   },
   cabinet(c, w, d, it) {
@@ -769,7 +770,7 @@ const D = {
     } else if (has(it, 'concave')) { c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.lineTo(w / 2, -d / 2 + a * 0.5); c.ellipse(w / 2, d / 2, w - a * 0.5, d - a * 0.5, 0, PI * 1.5, PI, true); c.lineTo(-w / 2, d / 2); }
     else { c.moveTo(-w / 2, -d / 2); c.lineTo(w / 2, -d / 2); c.lineTo(w / 2, -d / 2 + a); c.lineTo(-w / 2 + a, -d / 2 + a); c.lineTo(-w / 2 + a, d / 2); c.lineTo(-w / 2, d / 2); }
     c.closePath();
-    if (up(it)) { c.save(); c.setLineDash?.([du(w, d), du(w, d) * 0.7]); c.fill(); c.stroke(); c.restore(); } else { c.fill(); c.stroke(); }
+    if (up(it) || /^wall_(corner|blind|diagonal|rounded)/.test(K(it))) { c.save(); c.setLineDash?.([du(w, d), du(w, d) * 0.7]); c.fill(); c.stroke(); c.restore(); } else { c.fill(); c.stroke(); }
     if (has(it, 'shelving', 'open')) soft(c, () => { ES(c, -w / 2, -d / 2, w * 0.66, d * 0.66, 0, PI / 2); ES(c, -w / 2, -d / 2, w * 0.33, d * 0.33, 0, PI / 2); });
     else soft(c, () => L(c, -w / 2, -d / 2, -w / 2 + a * 0.9, -d / 2 + a * 0.9));
   },
@@ -996,15 +997,18 @@ const D = {
     if (has(it, 'storage')) L(c, -w / 2, -d / 2 + d * 0.15, w / 2, -d / 2 + d * 0.15);
   },
   mirrorF(c, w, d, it) {
-    alongX(c, w, d, (W, H) => {
+    alongX(c, w, d, (W, H0) => {
+      const H = Math.min(H0, 6);
+      c.save(); c.translate(0, -(H0 - H) / 2);
+      if (H0 > H) soft(c, () => dash(c, du(W, H0), () => { L(c, -W / 2, H / 2, -W / 2 + W * 0.1, H0 - H / 2); L(c, W / 2, H / 2, W / 2 - W * 0.1, H0 - H / 2); }), 0.4);
       const shape = () => {
         if (has(it, 'round', 'oval', 'half_moon', 'arched')) RR(c, -W / 2, -H / 2, W, H, H / 2);
         else R(c, -W / 2, -H / 2, W, H);
       };
       if (up(it)) dash(c, du(W, H) * 2, shape); else shape();
-      soft(c, () => { for (let x = -W / 2 + W * 0.15; x < W / 2 - 2; x += Math.max(W * 0.2, 6)) L(c, x, H / 2, x + H * 1.2, -H / 2); });
+      soft(c, () => { for (let x = -W / 2 + W * 0.15; x < W / 2 - H * 1.2 - 1; x += Math.max(W * 0.2, 6)) L(c, x, H / 2, x + H * 1.2, -H / 2); });
       if (has(it, 'backlit')) tone(c, 0.3, () => R(c, -W / 2, -H / 2, W, H * 0.3));
-      if (has(it, 'floor')) { L(c, -W * 0.3, H / 2, -W * 0.36, H / 2 + H * 1.5 > H ? H / 2 : H / 2); }
+      c.restore();
     });
   },
 
@@ -1510,11 +1514,11 @@ const D = {
   },
   screen(c, w, d, it) {
     alongX(c, w, d, (W, H) => {
-      const n = cl(Math.round(W / 50), 2, 8), s = W / n, t = cl(H * 0.15, 1, 3);
-      c.beginPath(); c.moveTo(-W / 2, H / 2 - t);
-      for (let i = 1; i <= n; i++) c.lineTo(-W / 2 + i * s, i % 2 ? -H / 2 + t : H / 2 - t);
+      const n = cl(Math.round(W / 25), 3, 10), s = W / n, t = cl(H * 0.06, 0.8, 2.5), A = Math.min(H / 2 - t, s * 0.35);
+      c.beginPath(); c.moveTo(-W / 2, A);
+      for (let i = 1; i <= n; i++) c.lineTo(-W / 2 + i * s, i % 2 ? -A : A);
       c.lineWidth *= 2.4; c.stroke(); c.lineWidth /= 2.4;
-      for (let i = 0; i <= n; i++) tone(c, 0.6, () => C(c, -W / 2 + i * s, i % 2 ? -H / 2 + t : H / 2 - t, t * 0.8));
+      for (let i = 0; i <= n; i++) tone(c, 0.6, () => C(c, -W / 2 + i * s, i % 2 ? -A : A, t * 0.8));
     });
   },
   partition(c, w, d, it) {
@@ -1523,7 +1527,7 @@ const D = {
       R(c, -W / 2, -t / 2, W, t);
       if (has(it, 'glass')) soft(c, () => { for (let x = -W / 2 + 6; x < W / 2; x += 12) L(c, x, t / 2, x + t, -t / 2); });
       else tone(c, 0.35, () => R(c, -W / 2, -t / 2, W, t));
-      for (const sx of [-1, 1]) tone(c, 0.6, () => R(c, sx * (W / 2 - t * 0.3) - t * 0.3, -H / 2, t * 0.6, H));
+      for (const sx of [-1, 1]) tone(c, 0.6, () => R(c, sx * (W / 2 - t * 0.3) - t * 0.3, -Math.min(H, 40) / 2, t * 0.6, Math.min(H, 40)));
     });
   },
   board(c, w, d, it) {
@@ -1535,9 +1539,10 @@ const D = {
       return;
     }
     alongX(c, w, d, (W, H) => {
-      dash(c, du(W, H), () => R(c, -W / 2, -H / 2, W, H * 0.6));
-      tone(c, has(it, 'chalk') ? 0.6 : 0.15, () => R(c, -W / 2 + 2, -H / 2 + 0.5, W - 4, H * 0.4));
-      RR(c, -W * 0.35, H * 0.15, W * 0.7, H * 0.35, H * 0.1);
+      const t = Math.min(H * 0.5, 4);
+      tone(c, has(it, 'chalk') ? 0.6 : 0.12, () => R(c, -W / 2, -H / 2, W, t));
+      R(c, -W / 2, -H / 2, W, t);
+      RR(c, -W * 0.4, -H / 2 + t, W * 0.8, Math.min(H * 0.3, t * 0.8), 0.5);
     });
   },
   globeBar(c, w, d) {
@@ -1658,8 +1663,9 @@ const D = {
   },
   backdrop(c, w, d, it) {
     alongX(c, w, d, (W, H) => {
-      RR(c, -W / 2 + H * 0.3, -H * 0.15, W - H * 0.6, H * 0.3, H * 0.15);
-      for (const sx of [-1, 1]) { soft(c, () => tripod(c, 0)); C(c, sx * (W / 2 - H * 0.3), 0, H * 0.25); }
+      const rr = Math.min(H * 0.15, 6);
+      RR(c, -W / 2 + rr * 2, -rr, W - rr * 4, rr * 2, rr);
+      for (const sx of [-1, 1]) C(c, sx * (W / 2 - rr * 2), 0, rr * 1.6);
       soft(c, () => dash(c, du(W, H), () => L(c, -W / 2 + H, H * 0.4, W / 2 - H, H * 0.4)));
     });
   },
@@ -2233,7 +2239,7 @@ const D = {
   fireplace(c, w, d, it) {
     const m = Math.min(w, d);
     if (has(it, 'chimney')) { C(c, 0, 0, m * 0.46); CS(c, 0, 0, m * 0.3); if (has(it, 'tank')) soft(c, () => CS(c, 0, 0, m * 0.4)); return; }
-    if (has(it, 'round', 'cylindrical', 'island_fireplace')) { E(c, 0, 0, w / 2, d / 2); tone(c, 0.15, () => E(c, 0, 0, w * 0.32, d * 0.32)); flame(c, 0, 0, m * 0.2); soft(c, () => dash(c, du(w, d), () => CS(c, 0, 0, m * 0.1))); return; }
+    if (has(it, 'round_island', 'cylindrical', 'island_fireplace')) { E(c, 0, 0, w / 2, d / 2); tone(c, 0.15, () => E(c, 0, 0, w * 0.32, d * 0.32)); flame(c, 0, 0, m * 0.2); soft(c, () => dash(c, du(w, d), () => CS(c, 0, 0, m * 0.1))); return; }
     if (has(it, 'sauna_heater')) { R(c, -w / 2, -d / 2, w, d); soft(c, () => { for (let i = 0; i < 16; i++) C(c, -w * 0.3 + (i % 4) * w * 0.2, -d * 0.3 + Math.floor(i / 4) * d * 0.2, m * 0.08); }); return; }
     if (has(it, 'bioethanol')) { body(c, w, d, it, m * 0.08); tone(c, 0.4, () => RR(c, -w * 0.35, -d * 0.1, w * 0.7, d * 0.2, d * 0.1)); for (const x of [-w * 0.2, 0, w * 0.2]) soft(c, () => flame(c, x, 0, Math.min(d * 0.3, w * 0.08))); return; }
     if (has(it, 'corner')) { P(c, -w / 2, -d / 2, w / 2, -d / 2, w / 2, -d * 0.1, -w * 0.1, d / 2, -w / 2, d / 2); tone(c, 0.3, () => P(c, -w * 0.3, -d * 0.3, w * 0.2, -d * 0.3, -w * 0.3, d * 0.2)); return; }
@@ -2367,25 +2373,25 @@ for (const [k, fn] of Object.entries(D)) {
 export const colors = {
   sofaCurve: '#7b8a9a', eggChair: '#a08670', rockingChair: '#b58c5e', lounger: '#c9b79c', benchPadded: '#b59a7a', seatRow: '#6b7680', hammock: '#d9c7a3',
   bedF: '#d8d2c8', roundBed: '#d8d2c8', crib: '#e8dcc8', hospitalBed: '#e6eef2', tanningBed: '#d9e2ea', petBed: '#c9a882', examTable: '#dfe8ee', massageTable: '#d9cfc2',
-  dentalChair: '#cfe0ea', salonChair: '#5d6670', shampooUnit: '#5d6670',
+  dentalChair: '#cfe0ea', salonChair: '#8d969f', shampooUnit: '#8d969f',
   diningTable: '#c49a6c', roundDining: '#c49a6c', coffeeTable: '#b58c5e', plankTable: '#c9a477', nightstand: '#c9a477', consoleTable: '#b58c5e', desk: '#c49a6c', computerSet: '#5d6670',
   deskCurved: '#c49a6c', reception: '#d8c3a5', island: '#e9e6df', barCounter: '#8a6a4f', pingPong: '#2f6d8f', foosball: '#2f7d4f', airHockey: '#3f6fa0', chessTable: '#b58c5e',
   slidingDoors: '#e7e1d6', cabinet: '#d8c3a5', cornerUnit: '#e9e6df', kitchenBase: '#e9e6df', worktop: '#d9d4cb', frontPanel: '#e9e6df', tallCabinet: '#e9e6df', shelfUnit: '#d8c3a5',
-  mediaWall: '#d8c3a5', projectorScreen: '#e3e6e9', wineRack: '#a0785a', shoeRack: '#d8c3a5', coatRack: '#a0785a', chest: '#b58c5e', locker: '#b7c0c8', safe: '#6b737b',
-  displayCase: '#dfe8ee', retailShelf: '#d9d4cb', breadRack: '#c9a477', palletRack: '#c9ced3', panRack: '#c9ced3', toolCabinet: '#b84a3e', headboard: '#b59a7a', wallPanel: '#c9b79c', radCover: '#f0f0f0',
-  mirrorF: '#dcecf7', oven: '#3b3e43', dishwasher: '#d9dde2', washerF: '#eef0f2', kSink: '#e9e6df', kettle: '#d9dde2', toaster: '#c9ced3', coffeeMaker: '#4b4f55', jarAppliance: '#d9dde2',
-  cookerPot: '#c9ced3', waffle: '#4b4f55', breadMaker: '#e3e6e9', grill: '#4b4f55', fryer: '#c9ced3', pizzaOven: '#a8735a', woodStove: '#3b3e43', stoveGuard: '#c49a6c', buffetStation: '#c9ced3',
-  prepTable: '#c9ced3', espresso: '#8a8f96', iceMaker: '#d9dde2', slicer: '#c9ced3', speaker: '#2b2e33', soundbar: '#2b2e33', avBox: '#3b3e43', turntable: '#4b4f55', laptop: '#8a8f96',
-  monitor: '#2b2e33', printer: '#e3e6e9', phone: '#4b4f55', projector: '#e3e6e9', vacuum: '#8a8f96', ironingBoard: '#d9dde2', garmentSteamer: '#e3e6e9', dryingRack: '#d9dde2', purifier: '#f4f6f8',
+  mediaWall: '#d8c3a5', projectorScreen: '#e3e6e9', wineRack: '#a0785a', shoeRack: '#d8c3a5', coatRack: '#a0785a', chest: '#b58c5e', locker: '#b7c0c8', safe: '#8a9299',
+  displayCase: '#dfe8ee', retailShelf: '#d9d4cb', breadRack: '#c9a477', palletRack: '#c9ced3', panRack: '#c9ced3', toolCabinet: '#c9675c', headboard: '#b59a7a', wallPanel: '#c9b79c', radCover: '#f0f0f0',
+  mirrorF: '#dcecf7', oven: '#b4b9be', dishwasher: '#d9dde2', washerF: '#eef0f2', kSink: '#e9e6df', kettle: '#d9dde2', toaster: '#c9ced3', coffeeMaker: '#9aa0a6', jarAppliance: '#d9dde2',
+  cookerPot: '#c9ced3', waffle: '#9aa0a6', breadMaker: '#e3e6e9', grill: '#aab0b6', fryer: '#c9ced3', pizzaOven: '#a8735a', woodStove: '#8f959b', stoveGuard: '#c49a6c', buffetStation: '#c9ced3',
+  prepTable: '#c9ced3', espresso: '#8a8f96', iceMaker: '#d9dde2', slicer: '#c9ced3', speaker: '#555a60', soundbar: '#2b2e33', avBox: '#9aa0a6', turntable: '#a7adb3', laptop: '#8a8f96',
+  monitor: '#4b4f55', printer: '#e3e6e9', phone: '#a7adb3', projector: '#e3e6e9', vacuum: '#8a8f96', ironingBoard: '#d9dde2', garmentSteamer: '#e3e6e9', dryingRack: '#d9dde2', purifier: '#f4f6f8',
   sewingMachine: '#e3e6e9', heater: '#e3e6e9', xmasTree: '#3f7a46', blinds: '#e3ddd0', clock: '#f4f4f4', aquarium: '#bfe0ef', cage: '#d9d4cb', catHouse: '#c9b79c', litterBox: '#d9dde2', feeder: '#d9d4cb',
-  trophy: '#8a6a4f', screen: '#c9b79c', partition: '#dcecf7', board: '#f4f6f8', globeBar: '#c9a477', arcade: '#3b3e43', hookah: '#b58c5e', telescope: '#8a8f96', mannequin: '#e8dcc8', wheelchair: '#8a8f96',
-  guitar: '#b5784a', drums: '#b84a3e', mixer: '#3b3e43', standGear: '#6b737b', backdrop: '#d9d4cb', treadmill: '#6b737b', exerciseBike: '#6b737b', rowingMachine: '#6b737b', elliptical: '#6b737b',
-  stairClimber: '#6b737b', multiGym: '#8a8f96', weightBench: '#4b4f55', boxingBag: '#b84a3e', boxingRing: '#3f6fa0', ball: '#e8a33d', trampoline: '#3f6fa0', pole: '#c9ced3', barre: '#c9a477',
-  weightRack: '#6b737b', tire: '#3b3e43', stepPlatform: '#6b737b', darts: '#3b3e43', playGym: '#e8c07a', playhouse: '#e8c07a', rockingHorse: '#c9a477', playpen: '#e8dcc8', swing: '#c9a477',
-  stroller: '#9fb7cf', kidsKitchen: '#f0d9a8', busyBoard: '#e8c07a', hoop: '#e08a3d', basket: '#c9a882', changingTable: '#e8dcc8', checkout: '#d9d4cb', pos: '#4b4f55', kiosk: '#d9dde2', gate: '#c9ced3',
+  trophy: '#8a6a4f', screen: '#c9b79c', partition: '#dcecf7', board: '#f4f6f8', globeBar: '#c9a477', arcade: '#7d838a', hookah: '#b58c5e', telescope: '#8a8f96', mannequin: '#e8dcc8', wheelchair: '#8a8f96',
+  guitar: '#b5784a', drums: '#b84a3e', mixer: '#8f959b', standGear: '#6b737b', backdrop: '#d9d4cb', treadmill: '#9aa3ab', exerciseBike: '#9aa3ab', rowingMachine: '#9aa3ab', elliptical: '#9aa3ab',
+  stairClimber: '#9aa3ab', multiGym: '#b0b6bc', weightBench: '#8a9299', boxingBag: '#b84a3e', boxingRing: '#3f6fa0', ball: '#e8a33d', trampoline: '#3f6fa0', pole: '#c9ced3', barre: '#c9a477',
+  weightRack: '#9aa3ab', tire: '#6b7076', stepPlatform: '#9aa3ab', darts: '#d9cfb8', playGym: '#e8c07a', playhouse: '#e8c07a', rockingHorse: '#c9a477', playpen: '#e8dcc8', swing: '#c9a477',
+  stroller: '#9fb7cf', kidsKitchen: '#f0d9a8', busyBoard: '#e8c07a', hoop: '#e08a3d', basket: '#c9a882', changingTable: '#e8dcc8', checkout: '#d9d4cb', pos: '#9aa0a6', kiosk: '#d9dde2', gate: '#c9ced3',
   queueBarrier: '#c9ced3', signStand: '#d9d4cb', scales: '#e3e6e9', fittingRoom: '#e3ddd0', drum: '#b7c0c8', draftTower: '#c9ced3', medCart: '#e6eef2', trolley: '#d9dde2', mri: '#e6eef2', chamber: '#d9dde2',
-  lathe: '#8fa39a', saw: '#8fa39a', machine: '#8fa39a', carLift: '#d9b44a', tireMachine: '#b84a3e', tankF: '#e3e6e9', boilerF: '#f0f0f0', bike: '#8a8f96', tubRound: '#c9a477', slats: '#d9b98c', firewood: '#a0785a',
-  unitBox: '#e3e6e9', dryerStand: '#c9ced3', makeupStation: '#d8c3a5',
+  lathe: '#8fa39a', saw: '#8fa39a', machine: '#8fa39a', carLift: '#d9b44a', tireMachine: '#d08a7f', tankF: '#e3e6e9', boilerF: '#f0f0f0', bike: '#8a8f96', tubRound: '#c9a477', slats: '#d9b98c', firewood: '#a0785a',
+  unitBox: '#e3e6e9', officeChair: '#7d868f', stool: '#8d969f', chair: '#8d969f', piano: '#7a6a5f', stove: '#b9bec4', dryerStand: '#c9ced3', makeupStation: '#d8c3a5',
 };
 
 // ---------- Priekšmetu piesaiste ----------
