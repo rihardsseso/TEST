@@ -574,16 +574,21 @@ export function drawFloor(ctx, floor, view, t, opts = {}) {
     ctx.font = `600 11px ${t.font}`;
     const nameW = ctx.measureText(r.name).width;
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillRect(c.x - nameW / 2 - 3, c.y - 22, nameW + 6, 14);
+    ctx.beginPath();
+    ctx.roundRect(c.x - nameW / 2 - 4, c.y - 22, nameW + 8, 14, 4);
+    ctx.fill();
     ctx.fillStyle = t.ink;
     ctx.fillText(r.name, c.x, c.y - 15);
     ctx.font = `10px ${t.font}`;
     const bw = Math.max(ctx.measureText(h1).width, ctx.measureText(h2).width) + 10;
+    // Birka ar noapaļotiem stūriem
+    ctx.beginPath();
+    ctx.roundRect(Math.round(c.x - bw / 2) + 0.5, Math.round(c.y - 5) + 0.5, Math.round(bw), 26, 6);
     ctx.fillStyle = t.bg;
-    ctx.fillRect(c.x - bw / 2, c.y - 5, bw, 26);
+    ctx.fill();
     ctx.strokeStyle = t.label;
     ctx.lineWidth = 1;
-    ctx.strokeRect(Math.round(c.x - bw / 2) + 0.5, Math.round(c.y - 5) + 0.5, Math.round(bw), 26);
+    ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(c.x - bw / 2, c.y + 8.5);
     ctx.lineTo(c.x + bw / 2, c.y + 8.5);
