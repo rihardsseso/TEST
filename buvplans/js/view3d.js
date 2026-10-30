@@ -220,18 +220,81 @@ export class View3D {
       g.add(m);
       return m;
     };
-    if (o.type === 'window') {
-      add3(new THREE.BoxGeometry(o.width * U, (top - o.sill) * U, 1.2 * U), mat('#9cc7e0', { transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.1 }), 0, (o.sill + top) / 2);
-      add3(new THREE.BoxGeometry(o.width * U, 6 * U, w.thickness * 0.6 * U), frame, 0, o.sill + 3);
-      add3(new THREE.BoxGeometry(o.width * U, 5 * U, 7 * U), frame, 0, top - 2.5);
-      add3(new THREE.BoxGeometry(5 * U, (top - o.sill) * U, 7 * U), frame, 0, (o.sill + top) / 2);
-      // Palodze telpas pusē
+    const glassMat = mat('#9cc7e0', { transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.1 });
+    // Stiklojums ar rāmi: `n` vērtnes starp x0..x1 (cm no ailes centra), no y0 līdz y1
+    const glazing = (x0, x1, y0, y1, n, { sliding = false } = {}) => {
+      const wd = x1 - x0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hh = y1 - y0;
+      if (sliding) {
+        // Bīdāmās vērtnes divās sliedēs, nedaudz pārklājas
+        const pw = wd / n + 4;
+        for (let i = 0; i < n; i++) {
+          const px = x0 + (wd / n) * (i + 0.5), z = (i % 2 ? 2.5 : -2.5);
+          const m = add3(new THREE.BoxGeometry((pw - 6) * U, (hh - 6) * U, 1.2 * U), glassMat, px, cy);
+          m.translateZ(z * U);
+          for (const sx of [-1, 1]) add3(new THREE.BoxGeometry(4 * U, hh * U, 4 * U), frame, px + sx * (pw / 2 - 2), cy).translateZ(z * U);
+        }
+      } else {
+        add3(new THREE.BoxGeometry(wd * U, hh * U, 1.2 * U), glassMat, cx, cy);
+        for (let i = 1; i < n; i++) add3(new THREE.BoxGeometry(5 * U, hh * U, 7 * U), frame, x0 + (wd / n) * i, cy);
+        // Rokturi vērtnēm
+        for (let i = 0; i < n; i++) {
+          const hx = x0 + (wd / n) * (i + (i % 2 ? 0.15 : 0.85));
+          add3(new THREE.BoxGeometry(2 * U, 12 * U, 9 * U), mat('#b8b8b8', { metalness: 0.6, roughness: 0.3 }), hx, Math.min(y1 - 20, y0 + 105));
+        }
+      }
+      add3(new THREE.BoxGeometry(wd * U, 5 * U, 7 * U), frame, cx, y1 - 2.5);
+      add3(new THREE.BoxGeometry(wd * U, 5 * U, 7 * U), frame, cx, y0 + 2.5);
+      for (const sx of [-1, 1]) add3(new THREE.BoxGeometry(5 * U, hh * U, 7 * U), frame, cx + sx * (wd / 2 - 2.5), cy);
+    };
+    const roomSill = (x0, x1, y) => {
       const n = { x: -d.y, y: d.x }, side = o.swing ? -1 : 1;
-      const sill = new THREE.Mesh(new THREE.BoxGeometry((o.width + 10) * U, 3 * U, 20 * U), frame);
-      const sp = add(c, mul(n, side * (w.thickness / 2)));
-      sill.position.set(sp.x * U, (o.sill - 1.5) * U, sp.y * U);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry((x1 - x0 + 10) * U, 3 * U, (o.sillDepth ?? 20) * U), frame);
+      const sp = add(wallPoint(w, o.pos + (x0 + x1) / 2), mul(n, side * (w.thickness / 2)));
+      sill.position.set(sp.x * U, (y - 1.5) * U, sp.y * U);
       sill.rotation.y = -ang;
       g.add(sill);
+    };
+    if (o.type === 'window') {
+      const v = o.variant || 'window', half = o.width / 2;
+      if (v === 'opening') return; // aile bez loga
+      if (v === 'windoor') {
+        // Balkona bloks: logs un durvis vienā ailē
+        const ww = o.windowWidth ?? 130, ws = o.windowSill ?? 85, wt = Math.min(ws + (o.windowHeight ?? 140), H);
+        const xw0 = o.hinge ? -half + (o.width - ww) : -half, xd0 = o.hinge ? -half : -half + ww;
+        glazing(xw0, xw0 + ww, ws, wt, o.casements ?? 1);
+        roomSill(xw0, xw0 + ww, ws);
+        add3(new THREE.BoxGeometry((ww) * U, (ws) * U, 6 * U), mat('#eeeeea'), xw0 + ww / 2, ws / 2);
+        const dw = o.width - ww;
+        glazing(xd0, xd0 + dw, 0, top, 1);
+        return;
+      }
+      if (v === 'french' || v === 'french4') {
+        // Franču logs: stikls līdz grīdai, veramas vērtnes, bez palodzes; ārpusē margas
+        glazing(-half, half, o.sill, top, v === 'french4' ? 4 : o.casements ?? 2);
+        const n = { x: -d.y, y: d.x }, out = o.swing ? 1 : -1;
+        const rail = mat('#3a3a3a', { metalness: 0.5, roughness: 0.4 });
+        for (const [hy, hgt] of [[95, 3], [o.sill + 8, 2]]) {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(o.width * U, hgt * U, 3 * U), rail);
+          const p = add(c, mul(n, out * (w.thickness / 2 + 4)));
+          m.position.set(p.x * U, hy * U, p.y * U);
+          m.rotation.y = -ang;
+          g.add(m);
+        }
+        for (let x = -half + 6; x <= half - 6; x += 12) {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(1.5 * U, (95 - o.sill - 8) * U, 1.5 * U), rail);
+          const p = add(wallPoint(w, o.pos + x), mul(n, out * (w.thickness / 2 + 4)));
+          m.position.set(p.x * U, ((95 + o.sill + 8) / 2) * U, p.y * U);
+          m.rotation.y = -ang;
+          g.add(m);
+        }
+        return;
+      }
+      if (v === 'frenchSliding') {
+        glazing(-half, half, o.sill, top, o.casements ?? 2, { sliding: true });
+        return;
+      }
+      glazing(-half, half, o.sill, top, o.casements ?? (o.width >= 100 ? 2 : 1));
+      roomSill(-half, half, o.sill);
     } else {
       const leaf = add3(new THREE.BoxGeometry((o.width - 4) * U, (top - 1) * U, 4 * U), mat('#c49a6c'), 0, top / 2);
       leaf.castShadow = true;
