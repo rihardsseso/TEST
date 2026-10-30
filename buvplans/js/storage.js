@@ -70,7 +70,7 @@ function roomArea(pts) {
 
 /** Pārbauda importēta JSON struktūru, lai bojāts fails nesalauztu redaktoru. */
 export function validateProject(p) {
-  if (!p || typeof p !== 'object' || !Array.isArray(p.floors) || !p.floors.length) throw new Error('Failā nav Būvplāna projekta.');
+  if (!p || typeof p !== 'object' || !Array.isArray(p.floors) || !p.floors.length) throw new Error('Failā nav Ēku plānošanas projekta.');
   for (const f of p.floors) {
     for (const k of ['walls', 'openings', 'rooms', 'items', 'dims', 'labels', 'lines', 'zones']) if (!Array.isArray(f[k])) f[k] = [];
     // Vecie elektrības vadi kļūst par kabeļu līnijām elektroinstalācijas lapā.

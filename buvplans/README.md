@@ -1,4 +1,4 @@
-# Būvplāns
+# Ēku plānošana
 
 Tiešsaistes ēku un telpu plānotājs pārlūkā. Idejas un funkciju kopums ņemts no
 [Remplanner](https://remplanner.com/planner/) plānotāja; kods un dizains ir pašu rakstīts.

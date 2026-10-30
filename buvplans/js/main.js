@@ -1329,7 +1329,7 @@ const nameInput = $('#projectName');
 nameInput.addEventListener('change', () => store.commit((f, p) => { p.name = nameInput.value.trim() || 'Bez nosaukuma'; }));
 function syncProjectUI() {
   nameInput.value = store.project.name;
-  document.title = `${store.project.name} · Būvplāns`;
+  document.title = `${store.project.name} · Ēku plānošana`;
   renderFloorMenus();
 }
 let saveTimer;
