@@ -578,7 +578,7 @@ const defCache = new Map();
 export function byKind(kind) {
   if (defCache.has(kind)) return defCache.get(kind);
   let def = CATALOG.find((c) => c.kind === kind);
-  if (def) def = { ...def, stage: LEGACY_STAGE[def.cat] || 'furniture' };
+  if (def) def = { ...def, sym: ASSIGN[kind] || def.sym, stage: LEGACY_STAGE[def.cat] || 'furniture' };
   else if (ITEMS[kind]) {
     const g = ITEMS[kind];
     const fam = ASSIGN[kind] || g.fam;
