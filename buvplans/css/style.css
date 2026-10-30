@@ -30,8 +30,8 @@
   --elev-glass: #dcecf7;
   --elev-door: #ead7c0;
   --elev-dim: #1d5ea8;
-  --font-ui: "Roboto", Arial, "Helvetica Neue", sans-serif;
-  --font-head: "Roboto Condensed", "Roboto", Arial, sans-serif;
+  --font-ui: "Exo 2", Arial, "Helvetica Neue", sans-serif;
+  --font-head: "Exo 2", Arial, sans-serif;
   --shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
   color-scheme: light;
 }

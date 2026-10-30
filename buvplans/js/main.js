@@ -1412,5 +1412,7 @@ setStage(stage.id);
 const startView = location.hash.slice(1);
 setView(VIEWS.includes(startView) ? startView : 'plan');
 $('#saveState').textContent = 'Saglabāts pārlūkā';
+// Plāns uz kanvas jāpārzīmē, kad Exo 2 fonts ielādējies
+document.fonts?.ready.then(() => editor.requestRender());
 window.buvplans = { store, editor, setStage, leftbar, shield };
 export { TOOLS };

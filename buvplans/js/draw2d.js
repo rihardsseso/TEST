@@ -13,7 +13,7 @@ export const THEME = {
   bg: '#ffffff', grid: '#eef0f2', gridMajor: '#d9dde1', ink: '#222222', muted: '#555555', line: '#2b2b2b',
   hatch: '#6f6f6f', newFill: '#dcdcdc', demolish: '#d93025', accent: '#f08c00', accentSoft: 'rgba(240,140,0,0.16)',
   glass: '#ffffff', dim: '#333333', label: '#e0312b', itemStroke: '#3a3a3a', wire: '#d93025',
-  font: '"Roboto", Arial, sans-serif', mono: '"Roboto", Arial, sans-serif',
+  font: '"Exo 2", Arial, sans-serif', mono: '"Exo 2", Arial, sans-serif',
 };
 export const readTheme = () => THEME;
 
@@ -1063,7 +1063,7 @@ export function floorSVG(floor, { units = 'cm' } = {}) {
   const pad = 60, W = b.w + pad * 2, H = b.h + pad * 2;
   const X = (x) => (x - b.minX + pad).toFixed(1), Y = (y) => (y - b.minY + pad).toFixed(1);
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}" width="${W.toFixed(0)}" height="${H.toFixed(0)}" font-family="Arial, sans-serif">`;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}" width="${W.toFixed(0)}" height="${H.toFixed(0)}" font-family="'Exo 2', Arial, sans-serif">`;
   s += `<rect width="100%" height="100%" fill="#fff"/>`;
   for (const r of floor.rooms) {
     const c = interiorPoint(r.points);
