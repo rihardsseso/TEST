@@ -214,7 +214,11 @@ const I = {
 I.partitionGypsum = I.partition;
 I.ceilingMount = I.bed;
 
+// Krāsainās (attēlu) ikonas mapē icons/ — aizstāj līnijas ikonu ar tādu pašu atslēgu
+const RASTER = new Set(['acIndoor', 'acOutdoor', 'acPipes', 'alarm', 'appliances']);
+
 export function icon(name, fallback = 'box') {
+  if (RASTER.has(name)) return `<img class="ic-img" src="icons/${name}.png" alt="" aria-hidden="true">`;
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${I[name] || I[fallback]}</svg>`;
 }
-export const hasIcon = (name) => !!I[name];
+export const hasIcon = (name) => !!I[name] || RASTER.has(name);
