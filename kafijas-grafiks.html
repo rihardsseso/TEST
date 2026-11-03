@@ -46,7 +46,7 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 12px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
 .panel h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; }
 .panel .meta { color: var(--ink-2); font-size: 13px; margin: 2px 0 0; }
-.chart { position: relative; display: grid; grid-template-columns: 36px 1fr; height: 280px; }
+.chart { position: relative; display: grid; grid-template-columns: 36px 1fr; height: 280px; margin-top: 32px; }
 .yaxis { position: relative; }
 .yaxis span { position: absolute; right: 8px; transform: translateY(50%); font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .plot { position: relative; border-bottom: 1px solid var(--ink-2); }
@@ -57,12 +57,19 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .val { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; margin-bottom: 4px; color: var(--ink); }
 .bar {
   width: 100%; background: var(--bar); border-radius: 4px 4px 0 0;
-  height: var(--h); transform-origin: bottom;
+  height: var(--h);
 }
 .col:hover .bar, .col:focus-visible .bar { background: var(--bar-hi); }
-.animate .bar { animation: grow 900ms cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d); }
-.animate .val { animation: fade 400ms ease both; animation-delay: calc(var(--d) + 600ms); }
-@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.animate .bar { animation: grow 1300ms linear both; animation-delay: var(--d); }
+.animate .val { animation: fade 300ms ease both; animation-delay: var(--d); }
+@keyframes grow {
+  0%   { height: 0;                       animation-timing-function: cubic-bezier(.3,0,.6,1); }
+  45%  { height: calc(var(--h) * 1.10);   animation-timing-function: ease-in-out; }
+  62%  { height: calc(var(--h) * 0.94);   animation-timing-function: ease-in-out; }
+  78%  { height: calc(var(--h) * 1.03);   animation-timing-function: ease-in-out; }
+  90%  { height: calc(var(--h) * 0.99);   animation-timing-function: ease-out; }
+  100% { height: var(--h); }
+}
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .xaxis { display: flex; justify-content: space-around; gap: 2px; padding: 6px 2% 0; margin-left: 36px; }
 .xaxis span { flex: 1; max-width: 72px; text-align: center; font-size: 12px; color: var(--ink-2); overflow-wrap: normal; hyphens: manual; line-height: 1.3; }
