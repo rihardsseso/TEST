@@ -1,0 +1,170 @@
+<title>Kafijas tirdzniecības rādītāji</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Work+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column, two column-chart panels stacked, replay control in the header */
+:root {
+  --bg: #f7f4f1;
+  --panel: #ffffff;
+  --ink: #2a211c;
+  --ink-2: #6b5d54;
+  --grid: #e6dfd9;
+  --bar: #7a4a2e;
+  --bar-hi: #5a321c;
+  --focus: #b0662f;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1613; --panel: #241d19; --ink: #f1e9e3; --ink-2: #b4a69c;
+    --grid: #3a302a; --bar: #d29a6c; --bar-hi: #ecb88b; --focus: #ecb88b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1613; --panel: #241d19; --ink: #f1e9e3; --ink-2: #b4a69c;
+  --grid: #3a302a; --bar: #d29a6c; --bar-hi: #ecb88b; --focus: #ecb88b; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap {
+  max-width: 880px; margin: 0 auto;
+  padding-block: 32px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 24px;
+}
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 5vw, 36px); line-height: 1.1; margin: 0; text-wrap: balance; }
+.sub { color: var(--ink-2); margin: 6px 0 0; }
+button {
+  font: 500 14px var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--grid); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+}
+button:hover { border-color: var(--bar); }
+button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 12px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.panel h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; }
+.panel .meta { color: var(--ink-2); font-size: 13px; margin: 2px 0 0; }
+.chart { position: relative; display: grid; grid-template-columns: 36px 1fr; height: 280px; }
+.yaxis { position: relative; }
+.yaxis span { position: absolute; right: 8px; transform: translateY(50%); font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.plot { position: relative; border-bottom: 1px solid var(--ink-2); }
+.gridline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--grid); }
+.bars { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; padding: 0 2%; }
+.col { flex: 1; max-width: 72px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; cursor: default; }
+.col:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.val { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; margin-bottom: 4px; color: var(--ink); }
+.bar {
+  width: 100%; background: var(--bar); border-radius: 4px 4px 0 0;
+  height: var(--h); transform-origin: bottom;
+}
+.col:hover .bar, .col:focus-visible .bar { background: var(--bar-hi); }
+.animate .bar { animation: grow 900ms cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d); }
+.animate .val { animation: fade 400ms ease both; animation-delay: calc(var(--d) + 600ms); }
+@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.xaxis { display: flex; justify-content: space-around; gap: 2px; padding: 6px 2% 0; margin-left: 36px; }
+.xaxis span { flex: 1; max-width: 72px; text-align: center; font-size: 12px; color: var(--ink-2); overflow-wrap: normal; hyphens: manual; line-height: 1.3; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--ink); color: var(--bg);
+  font-size: 12px; padding: 6px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%);
+  z-index: 2;
+}
+details { font-size: 13px; color: var(--ink-2); }
+summary { cursor: pointer; }
+table { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 4px 16px 4px 0; border-bottom: 1px solid var(--grid); color: var(--ink); }
+td:last-child, th:last-child { text-align: right; }
+.grid2 { display: grid; gap: 24px; }
+@media (prefers-reduced-motion: reduce) { .animate .bar, .animate .val { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Kafijas tirdzniecības rādītāji</h1>
+      <p class="sub">Pārdotais daudzums pēc kafijas veida un pircēju sadalījums pēc dzīvesvietas</p>
+    </div>
+    <button id="replay" type="button">↻ Atkārtot animāciju</button>
+  </header>
+  <div class="grid2" id="charts"></div>
+</div>
+
+<script>
+const DATA = [
+  {
+    id: "veidi", title: "Kafijas varianti", meta: "Daudzums gramos",
+    unit: " g", max: 160, step: 40,
+    rows: [["Grauzdēta",150],["Filtrēta",130],["Instant",110],["Expresso",64],["Decaf",8]]
+  },
+  {
+    id: "vietas", title: "Sadalījums pēc dzīvesvietas", meta: "Daļa no kopējā, % (kopā 100)",
+    unit: "%", max: 60, step: 20,
+    rows: [["Lauki",50],["Pilsēta",20],["Priekšpilsēta",15],["Ciemi",5],["Viensētas",10]]
+  }
+];
+
+const SOFT = { "Grauzdēta": "Grauz&shy;dēta", "Priekšpilsēta": "Priekš&shy;pilsēta", "Expresso": "Ex&shy;presso", "Viensētas": "Vien&shy;sētas" };
+const root = document.getElementById("charts");
+
+function build(d) {
+  const s = document.createElement("section");
+  s.className = "panel";
+  let ticks = "", lines = "";
+  for (let v = 0; v <= d.max; v += d.step) {
+    const p = (v / d.max) * 100;
+    ticks += `<span style="bottom:${p}%">${v}</span>`;
+    if (v > 0) lines += `<div class="gridline" style="bottom:${p}%"></div>`;
+  }
+  const cols = d.rows.map(([k, v], i) =>
+    `<div class="col" tabindex="0" data-k="${k}" data-v="${v}" aria-label="${k}: ${v}${d.unit}" style="--d:${i * 120}ms">
+       <span class="val">${v}${d.unit}</span>
+       <div class="bar" style="--h:${(v / d.max) * 100}%"></div>
+     </div>`).join("");
+  const xs = d.rows.map(([k]) => `<span>${SOFT[k] || k}</span>`).join("");
+  const tr = d.rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}${d.unit}</td></tr>`).join("");
+  s.innerHTML = `
+    <div><h2>${d.title}</h2><p class="meta">${d.meta}</p></div>
+    <div>
+      <div class="chart animate">
+        <div class="yaxis" aria-hidden="true">${ticks}</div>
+        <div class="plot">${lines}<div class="bars">${cols}</div></div>
+      </div>
+      <div class="xaxis" aria-hidden="true">${xs}</div>
+    </div>
+    <details><summary>Rādīt tabulu</summary>
+      <table><thead><tr><th>${d.id === "veidi" ? "Veids" : "Dzīvesvieta"}</th><th>${d.meta.split(",")[0]}</th></tr></thead><tbody>${tr}</tbody></table>
+    </details>`;
+  root.appendChild(s);
+
+  const plot = s.querySelector(".plot");
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true;
+  plot.appendChild(tip);
+  s.querySelectorAll(".col").forEach(c => {
+    const show = () => {
+      const pr = plot.getBoundingClientRect();
+      const bar = c.querySelector(".bar").getBoundingClientRect();
+      const share = Math.round(c.dataset.v / d.rows.reduce((a, r) => a + r[1], 0) * 100);
+      tip.textContent = d.unit === "%" ? `${c.dataset.k}: ${c.dataset.v}%` : `${c.dataset.k}: ${c.dataset.v} g (${share}% no kopējā)`;
+      tip.style.left = (bar.left + bar.width / 2 - pr.left) + "px";
+      tip.style.top = Math.max(28, bar.top - pr.top - 26) + "px";
+      tip.hidden = false;
+    };
+    c.addEventListener("mouseenter", show);
+    c.addEventListener("focus", show);
+    c.addEventListener("mouseleave", () => tip.hidden = true);
+    c.addEventListener("blur", () => tip.hidden = true);
+  });
+}
+DATA.forEach(build);
+
+document.getElementById("replay").addEventListener("click", () => {
+  document.querySelectorAll(".chart").forEach(ch => {
+    ch.classList.remove("animate");
+    void ch.offsetWidth;
+    ch.classList.add("animate");
+  });
+});
+</script>
