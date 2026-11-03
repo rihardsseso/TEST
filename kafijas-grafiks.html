@@ -60,7 +60,7 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .val { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; margin-bottom: 4px; color: var(--ink); }
 .bar {
   width: 100%; background: var(--bar); border-radius: 4px 4px 0 0;
-  height: var(--h);
+  height: var(--h); flex-shrink: 0;
 }
 .col:hover .bar, .col:focus-visible .bar { background: var(--bar-hi); }
 .animate .bar { animation: grow 1300ms linear both; animation-delay: var(--d); }
@@ -132,7 +132,7 @@ function build(d) {
     if (v > 0) lines += `<div class="gridline" style="bottom:${p}%"></div>`;
   }
   const cols = d.rows.map(([k, v], i) =>
-    `<div class="col" tabindex="0" data-k="${k}" data-v="${v}" aria-label="${k}: ${v}${d.unit}" style="--d:${i * 120}ms">
+    `<div class="col" tabindex="0" data-k="${k}" data-v="${v}" data-u="${d.unit}" data-r="${v / d.max}" aria-label="${k}: ${v}${d.unit}" style="--d:${i * 120}ms">
        <span class="val">${v}${d.unit}</span>
        <div class="bar" style="--h:${(v / d.max) * 100}%"></div>
      </div>`).join("");
@@ -174,11 +174,35 @@ function build(d) {
 }
 DATA.forEach(build);
 
+// Skaitlis virs stabiņa aug no 0 līdz vērtībai kopā ar stabiņu
+function updateVals() {
+  document.querySelectorAll(".col").forEach(c => {
+    const v = +c.dataset.v;
+    const target = c.getBoundingClientRect().height * +c.dataset.r;
+    const cur = c.querySelector(".bar").getBoundingClientRect().height;
+    const ratio = target ? cur / target : 1;
+    let n = (c.dataset.done || ratio >= 0.995) ? v : Math.min(v, Math.round(v * ratio));
+    if (n >= v) c.dataset.done = "1";
+    c.querySelector(".val").textContent = n + c.dataset.u;
+  });
+}
+window.updateVals = updateVals;
+let loopEnd = 0;
+function loop(t) { updateVals(); if (performance.now() < loopEnd) requestAnimationFrame(loop); }
+function startLoop() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  document.querySelectorAll(".col").forEach(c => delete c.dataset.done);
+  loopEnd = performance.now() + 3000;
+  requestAnimationFrame(loop);
+}
+startLoop();
+
 document.getElementById("replay").addEventListener("click", () => {
   document.querySelectorAll(".chart").forEach(ch => {
     ch.classList.remove("animate");
     void ch.offsetWidth;
     ch.classList.add("animate");
   });
+  startLoop();
 });
 </script>
