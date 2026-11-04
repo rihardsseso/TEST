@@ -225,6 +225,11 @@ function applyLoginItem(enabled) {
 
 // ---------- IPC ----------
 
+const NO_CALENDAR_PERMISSION =
+  'Google netika atļauta kalendāra lasīšana. Spied “Pieslēgties ar Google” vēlreiz un ' +
+  'atļauju logā atzīmē rūtiņu “See and download any calendar you can access using your Google Calendar” ' +
+  '(vai “Select all”).';
+
 function registerIpc() {
   ipcMain.handle('state:get', () => ({
     hasClient: !!client,
@@ -275,6 +280,10 @@ function registerIpc() {
   ipcMain.handle('auth:signIn', async () => {
     if (!client) throw new Error('Nav iestatīts Google OAuth klients');
     const t = await google.authorize(client, (url) => shell.openExternal(url));
+    if (!google.hasCalendarScope(t.scope)) {
+      await google.revoke(t.refreshToken || t.accessToken);
+      throw new Error(NO_CALENDAR_PERMISSION);
+    }
     if (!t.refreshToken) throw new Error('Google neatgrieza atjaunošanas atslēgu — mēģini vēlreiz');
     saveAuth({ refreshToken: t.refreshToken, email: t.email });
     access = { accessToken: t.accessToken, expiresAt: t.expiresAt };
@@ -296,6 +305,12 @@ function registerIpc() {
     try {
       return { ok: true, data: await fetchAgenda() };
     } catch (e) {
+      if (e.code === 'insufficient_scope') {
+        const token = auth?.refreshToken;
+        clearAuth();
+        if (token) await google.revoke(token);
+        return { ok: false, code: 'signed_out', message: NO_CALENDAR_PERMISSION };
+      }
       return { ok: false, code: e.code || null, message: e.message };
     }
   });

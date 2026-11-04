@@ -39,6 +39,12 @@ Google neļauj programmām lasīt kalendāru bez reģistrēta “OAuth klienta�
 Alternatīva: nolikt lejupielādēto failu ar nosaukumu `oauth-client.json` blakus
 `KalendaraLogriks.exe` — tad logrīks to atradīs pats.
 
+## Problēmas
+
+- **“Request had insufficient authentication scopes”** vai “Google netika atļauta kalendāra
+  lasīšana” — Google atļauju logā nebija atzīmēta kalendāra rūtiņa. Spied **Pieslēgties ar Google**
+  vēlreiz un atzīmē **“See and download any calendar you can access…”** (vai **Select all**).
+
 ## Izstrāde
 
 ```bash

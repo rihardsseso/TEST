@@ -102,3 +102,10 @@ test('decodeIdTokenEmail', () => {
   assert.strictEqual(google.decodeIdTokenEmail(`h.${payload}.s`), 'a@b.lv');
   assert.strictEqual(google.decodeIdTokenEmail('garbage'), null);
 });
+
+test('hasCalendarScope: pamana, ja lietotājs nav atļāvis kalendāra lasīšanu', () => {
+  assert.strictEqual(google.hasCalendarScope('openid https://www.googleapis.com/auth/userinfo.email'), false);
+  assert.strictEqual(google.hasCalendarScope(''), false);
+  assert.strictEqual(google.hasCalendarScope('openid https://www.googleapis.com/auth/calendar.readonly'), true);
+  assert.strictEqual(google.hasCalendarScope('https://www.googleapis.com/auth/calendar'), true);
+});

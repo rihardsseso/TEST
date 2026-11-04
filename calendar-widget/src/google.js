@@ -10,11 +10,15 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const API = 'https://www.googleapis.com/calendar/v3';
-const SCOPES = [
-  'openid',
-  'email',
-  'https://www.googleapis.com/auth/calendar.readonly',
-];
+const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+const SCOPES = ['openid', 'email', CALENDAR_SCOPE];
+
+// Google ļauj lietotājam pieslēgšanās logā noņemt atsevišķas atļaujas, tāpēc jāpārbauda,
+// vai kalendāra lasīšana tiešām tika atļauta (der arī pilnā kalendāra atļauja).
+function hasCalendarScope(scope) {
+  const granted = String(scope || '').split(/\s+/);
+  return granted.includes(CALENDAR_SCOPE) || granted.includes('https://www.googleapis.com/auth/calendar');
+}
 
 function base64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -159,6 +163,7 @@ async function exchangeCode({ clientId, clientSecret, code, verifier, redirectUr
     refreshToken: t.refresh_token,
     expiresAt: Date.now() + (t.expires_in - 60) * 1000,
     email: t.id_token ? decodeIdTokenEmail(t.id_token) : null,
+    scope: t.scope || '',
   };
 }
 
@@ -193,6 +198,10 @@ async function apiGet(accessToken, path, query = {}) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(body.error?.message || `HTTP ${res.status}`);
     err.status = res.status;
+    const reasons = (body.error?.details || []).map((d) => d.reason);
+    if (res.status === 403 && (reasons.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT') || /insufficient authentication scopes/i.test(err.message))) {
+      err.code = 'insufficient_scope';
+    }
     throw err;
   }
   return res.json();
@@ -243,6 +252,7 @@ async function listEvents(accessToken, calendarId, timeMin, timeMax) {
 
 module.exports = {
   SCOPES,
+  hasCalendarScope,
   createPkce,
   buildAuthUrl,
   parseClientConfig,
