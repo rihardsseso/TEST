@@ -111,6 +111,47 @@
       </div>
 
       <div class="group">
+        <h4>Fona gradients</h4>
+        <label class="check"><input id="set-grad" type="checkbox"> Gradienta fons</label>
+        <div id="grad-editor">
+          <div id="grad-presets" class="grad-presets"></div>
+          <div class="grad-bar-wrap">
+            <div id="grad-bar" class="grad-bar" title="Klikšķini, lai pievienotu krāsu punktu"><div id="grad-bar-fill"></div></div>
+            <div id="grad-stops" class="grad-stops"></div>
+          </div>
+          <p class="muted small">Klikšķini uz joslas, lai pievienotu punktu; velc punktu, lai pārvietotu;
+            velc to uz leju vai spied “Dzēst”, lai noņemtu.</p>
+          <div class="grad-stop-edit">
+            <label class="color-label">Krāsa
+              <input id="grad-color" type="color">
+            </label>
+            <label class="grow">Necaurspīdīgums <output id="out-grad-op"></output>
+              <input id="grad-opacity" type="range" min="0" max="100" step="1">
+            </label>
+          </div>
+          <div class="grad-stop-edit">
+            <label class="grow">Pozīcija <output id="out-grad-pos"></output>
+              <input id="grad-pos" type="range" min="0" max="100" step="1">
+            </label>
+            <button id="btn-grad-del" type="button">Dzēst</button>
+          </div>
+          <div class="grad-stop-edit">
+            <label class="grow">Veids
+              <select id="grad-type">
+                <option value="linear">Lineārs</option>
+                <option value="radial">Radiāls</option>
+                <option value="conic">Konisks</option>
+              </select>
+            </label>
+            <button id="btn-grad-reverse" type="button" title="Apgriezt gradientu">⇆ Apgriezt</button>
+          </div>
+          <label id="grad-angle-wrap">Leņķis <output id="out-grad-angle"></output>
+            <input id="grad-angle" type="range" min="0" max="360" step="1">
+          </label>
+        </div>
+      </div>
+
+      <div class="group">
         <h4>Laika prognoze</h4>
         <label class="check"><input id="set-weather" type="checkbox"> Rādīt laika prognozi</label>
         <div id="set-cities"></div>
@@ -185,6 +226,7 @@
 
   <script src="agenda.js"></script>
   <script src="namedays.js"></script>
+  <script src="gradient.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const Gradient = require('./renderer/gradient');
 
 const DEFAULTS = {
   bounds: { width: 360, height: 560 },
@@ -22,6 +23,7 @@ const DEFAULTS = {
   weatherEnabled: true,
   cities: [{ name: 'Rīga', region: '', country: 'Latvija', lat: 56.946, lon: 24.1059 }],
   activeCity: 0,
+  bgGradient: Gradient.normalize(Gradient.DEFAULT),
 };
 
 class Store {

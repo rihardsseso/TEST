@@ -1,6 +1,6 @@
 'use strict';
 
-/* global Agenda, Namedays */
+/* global Agenda, Namedays, Gradient */
 
 const $ = (id) => document.getElementById(id);
 const api = window.widget;
@@ -62,8 +62,12 @@ function applyAppearance() {
   const s = state.settings;
   const alpha = 1 - s.bgTransparency;
   document.body.classList.toggle('light', s.theme === 'light');
-  document.body.classList.toggle('see-through', alpha < 0.5);
+  const g = s.bgGradient;
+  // Uz caurspīdīga vai krāsaina fona tekstam vajag ēnu, lai tas būtu salasāms
+  document.body.classList.toggle('see-through', alpha < 0.5 || !!(g && g.enabled));
   document.documentElement.style.setProperty('--bg-alpha', String(alpha));
+  if (g && g.enabled) document.documentElement.style.setProperty('--frame-bg', Gradient.toCss(g, alpha));
+  else document.documentElement.style.removeProperty('--frame-bg');
   $('btn-pin').classList.toggle('on', !!s.alwaysOnTop);
   $('btn-pin').title = s.alwaysOnTop ? 'Vienmēr virspusē: ieslēgts' : 'Vienmēr virspusē: izslēgts';
 }
@@ -490,6 +494,163 @@ function applyPopTransparency(value) {
   popSaveTimer = setTimeout(() => saveSettings({ eventOverrides: state.settings.eventOverrides }), 300);
 }
 
+// ---------- Fona gradienta redaktors (kā Photoshop) ----------
+
+let grad = null; // rediģējamā kopija
+let gradSel = null; // izvēlētais krāsu punkts (objekts no grad.stops)
+let gradSaveTimer;
+
+const cloneGrad = (g) => ({ ...g, stops: g.stops.map((x) => ({ ...x })) });
+
+function gradChanged(full = true) {
+  state.settings = { ...state.settings, bgGradient: cloneGrad(grad) };
+  applyAppearance();
+  if (full) renderGradEditor();
+  else $('grad-bar-fill').style.background = Gradient.toCss(grad, 1, 'linear');
+  clearTimeout(gradSaveTimer);
+  gradSaveTimer = setTimeout(() => saveSettings({ bgGradient: cloneGrad(grad) }), 300);
+}
+
+function openGradEditor() {
+  grad = cloneGrad(Gradient.normalize(state.settings.bgGradient));
+  gradSel = grad.stops[0];
+  const box = $('grad-presets');
+  if (!box.children.length) {
+    for (const p of Gradient.PRESETS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'grad-preset';
+      b.title = p.name;
+      b.style.background = Gradient.toCss({ stops: p.stops }, 1, 'linear');
+      b.addEventListener('click', () => {
+        grad.enabled = true;
+        grad.stops = p.stops.map((x) => ({ ...x }));
+        gradSel = grad.stops[0];
+        gradChanged();
+      });
+      box.append(b);
+    }
+  }
+  renderGradEditor();
+}
+
+function renderGradEditor() {
+  $('set-grad').checked = grad.enabled;
+  $('grad-editor').classList.toggle('disabled', !grad.enabled);
+  $('grad-bar-fill').style.background = Gradient.toCss(grad, 1, 'linear');
+  $('grad-type').value = grad.type;
+  $('grad-angle').value = String(grad.angle);
+  $('out-grad-angle').textContent = `${Math.round(grad.angle)}°`;
+  $('grad-angle-wrap').classList.toggle('hidden', grad.type === 'radial');
+  if (!grad.stops.includes(gradSel)) gradSel = grad.stops[0];
+  $('grad-color').value = gradSel.color;
+  $('grad-opacity').value = String(Math.round(gradSel.opacity * 100));
+  $('out-grad-op').textContent = pct(gradSel.opacity);
+  $('grad-pos').value = String(Math.round(gradSel.pos));
+  $('out-grad-pos').textContent = `${Math.round(gradSel.pos)}%`;
+  $('btn-grad-del').disabled = grad.stops.length <= 2;
+  renderGradStops();
+}
+
+function renderGradStops() {
+  const box = $('grad-stops');
+  box.replaceChildren();
+  for (const stop of grad.stops) {
+    const el = document.createElement('div');
+    el.className = 'grad-stop';
+    if (stop === gradSel) el.classList.add('selected');
+    el.style.left = `${stop.pos}%`;
+    el.style.background = stop.color;
+    el.title = `${stop.color}, ${Math.round(stop.pos)}%`;
+    el.addEventListener('pointerdown', (e) => startStopDrag(e, stop, el));
+    box.append(el);
+  }
+}
+
+function startStopDrag(e, stop, el) {
+  e.preventDefault();
+  gradSel = stop;
+  for (const x of $('grad-stops').children) x.classList.toggle('selected', x === el);
+  el.setPointerCapture(e.pointerId);
+  const rect = $('grad-bar').getBoundingClientRect();
+  const startY = e.clientY;
+  let removing = false;
+  const move = (ev) => {
+    stop.pos = Math.round(Math.min(100, Math.max(0, ((ev.clientX - rect.left) / rect.width) * 100)));
+    removing = grad.stops.length > 2 && ev.clientY - startY > 30;
+    el.classList.toggle('removing', removing);
+    el.style.left = `${stop.pos}%`;
+    $('grad-pos').value = String(stop.pos);
+    $('out-grad-pos').textContent = `${stop.pos}%`;
+    gradChanged(false);
+  };
+  const up = () => {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    el.removeEventListener('pointercancel', up);
+    if (removing) grad.stops = grad.stops.filter((x) => x !== stop);
+    gradChanged();
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  renderGradFields();
+}
+
+// Atjauno tikai izvēlētā punkta laukus, nepārzīmējot punktus (lai nepazaudētu vilkšanu)
+function renderGradFields() {
+  $('grad-color').value = gradSel.color;
+  $('grad-opacity').value = String(Math.round(gradSel.opacity * 100));
+  $('out-grad-op').textContent = pct(gradSel.opacity);
+  $('grad-pos').value = String(Math.round(gradSel.pos));
+  $('out-grad-pos').textContent = `${Math.round(gradSel.pos)}%`;
+}
+
+function bindGradEditor() {
+  $('set-grad').onchange = (e) => {
+    grad.enabled = e.target.checked;
+    gradChanged();
+  };
+  $('grad-bar').addEventListener('click', (e) => {
+    if (grad.stops.length >= 16) return;
+    const rect = $('grad-bar').getBoundingClientRect();
+    const pos = Math.round(Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100)));
+    const { color, opacity } = Gradient.colorAt(grad.stops, pos);
+    gradSel = { color, opacity, pos };
+    grad.stops.push(gradSel);
+    gradChanged();
+  });
+  $('grad-color').oninput = (e) => {
+    gradSel.color = e.target.value;
+    gradChanged();
+  };
+  $('grad-opacity').oninput = (e) => {
+    gradSel.opacity = Number(e.target.value) / 100;
+    gradChanged();
+  };
+  $('grad-pos').oninput = (e) => {
+    gradSel.pos = Number(e.target.value);
+    gradChanged();
+  };
+  $('btn-grad-del').onclick = () => {
+    if (grad.stops.length <= 2) return;
+    grad.stops = grad.stops.filter((x) => x !== gradSel);
+    gradChanged();
+  };
+  $('grad-type').onchange = (e) => {
+    grad.type = e.target.value;
+    gradChanged();
+  };
+  $('grad-angle').oninput = (e) => {
+    grad.angle = Number(e.target.value);
+    gradChanged();
+  };
+  $('btn-grad-reverse').onclick = () => {
+    for (const x of grad.stops) x.pos = 100 - x.pos;
+    gradChanged();
+  };
+}
+
 // ---------- Iestatījumi ----------
 
 function openSettings() {
@@ -511,6 +672,7 @@ function openSettings() {
   $('set-namedays-ext').checked = !!s.namedaysExtended;
   renderCitySettings();
   renderCalendarList();
+  openGradEditor();
   $('settings').classList.remove('hidden');
 }
 
@@ -658,6 +820,8 @@ function bind() {
   };
   $('set-top').onchange = (e) => saveSettings({ alwaysOnTop: e.target.checked });
   $('set-autostart').onchange = (e) => saveSettings({ startWithWindows: e.target.checked });
+
+  bindGradEditor();
 
   // Laika prognoze un vārda dienas
   $('w-city').onclick = nextCity;

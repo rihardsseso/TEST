@@ -6,6 +6,7 @@ const path = require('path');
 const { Store } = require('./store');
 const google = require('./google');
 const weather = require('./weather');
+const Gradient = require('./renderer/gradient');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -260,10 +261,12 @@ function registerIpc() {
       'theme', 'bgTransparency', 'eventTransparency', 'eventOverrides', 'days',
       'alwaysOnTop', 'startWithWindows', 'selectedCalendars', 'refreshMinutes',
       'namedaysEnabled', 'namedaysExtended', 'weatherEnabled', 'cities', 'activeCity',
+      'bgGradient',
     ];
     const clean = {};
     for (const k of allowed) if (k in patch) clean[k] = patch[k];
     if ('days' in clean) clean.days = Math.min(30, Math.max(1, parseInt(clean.days, 10) || 7));
+    if ('bgGradient' in clean) clean.bgGradient = Gradient.normalize(clean.bgGradient);
     if ('cities' in clean) clean.cities = cleanCities(clean.cities);
     if ('cities' in clean || 'activeCity' in clean) {
       const count = (clean.cities || store.get('cities')).length;

@@ -13,6 +13,9 @@ brīdināt par nezināmu izdevēju — spied **Vairāk informācijas → Tik un 
 
 - **Pieslēgšanās ar Google kontu** — atveras pārlūks, tu pieslēdzies un atļauj kalendāra lasīšanu.
   Logrīks atceras pieslēgšanos (atslēga glabājas šifrēta ar Windows DPAPI).
+- **Gradienta fons** ar redaktoru kā Photoshop — 8 gatavi paraugi; uz joslas var pievienot krāsu
+  punktus, vilkt tos, mainīt katra krāsu un necaurspīdīgumu, izvēlēties lineāru, radiālu vai konisku
+  gradientu un leņķi. Gradientu var arī izslēgt, tad fons ir vienkrāsains.
 - **Fona caurspīdīgums** (0–100 %) — kad fons ir gandrīz caurspīdīgs, tekstam tiek pievienota ēna.
 - **Notikumu caurspīdīgums** — noklusējuma vērtība visiem notikumiem un **individuāla katram
   notikumam**: uzklikšķini uz notikuma un pavelc slīdni. Atkārtotiem notikumiem var izvēlēties
