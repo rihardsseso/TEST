@@ -22,6 +22,26 @@
       </div>
     </header>
 
+    <!-- Vārda dienas un laika prognoze -->
+    <div id="infobar" class="hidden">
+      <div id="nameday" class="nameday hidden">
+        <span class="nd-icon">🎉</span>
+        <span><span class="muted">Vārda dienas:</span> <strong id="nameday-names"></strong></span>
+      </div>
+      <div id="weather" class="weather hidden">
+        <div class="w-now">
+          <span id="w-icon" class="w-icon"></span>
+          <span id="w-temp" class="w-temp"></span>
+          <div class="w-meta">
+            <button id="w-city" class="w-city" title="Nākamā pilsēta"></button>
+            <span id="w-desc" class="muted small"></span>
+          </div>
+        </div>
+        <div id="w-days" class="w-days"></div>
+        <p id="w-error" class="error small"></p>
+      </div>
+    </div>
+
     <main id="content">
       <!-- 1. solis: Google OAuth klients -->
       <section id="view-setup" class="view hidden">
@@ -91,6 +111,25 @@
       </div>
 
       <div class="group">
+        <h4>Laika prognoze</h4>
+        <label class="check"><input id="set-weather" type="checkbox"> Rādīt laika prognozi</label>
+        <div id="set-cities"></div>
+        <form id="city-form" class="row">
+          <input id="city-query" type="text" spellcheck="false" placeholder="Pievienot pilsētu, piem., Valmiera">
+          <button id="btn-city-search" type="submit">Meklēt</button>
+        </form>
+        <div id="city-results"></div>
+        <p id="city-error" class="error small"></p>
+        <p class="muted small">Pilsētu logrīkā var pārslēgt, uzklikšķinot uz tās nosaukuma. Dati: Open-Meteo.</p>
+      </div>
+
+      <div class="group">
+        <h4>Vārda dienas</h4>
+        <label class="check"><input id="set-namedays" type="checkbox"> Rādīt vārda dienas</label>
+        <label class="check"><input id="set-namedays-ext" type="checkbox"> Iekļaut arī paplašinātā saraksta vārdus</label>
+      </div>
+
+      <div class="group">
         <h4>Izskats</h4>
         <label>Tēma
           <select id="set-theme">
@@ -145,6 +184,7 @@
   </div>
 
   <script src="agenda.js"></script>
+  <script src="namedays.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

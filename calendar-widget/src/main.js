@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { Store } = require('./store');
 const google = require('./google');
+const weather = require('./weather');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -225,6 +226,22 @@ function applyLoginItem(enabled) {
 
 // ---------- IPC ----------
 
+const weatherCache = new Map(); // "lat,lon" → { at, data }
+
+function cleanCities(list) {
+  if (!Array.isArray(list)) return store.get('cities');
+  return list
+    .filter((c) => c && Number.isFinite(+c.lat) && Number.isFinite(+c.lon) && c.name)
+    .slice(0, 20)
+    .map((c) => ({
+      name: String(c.name).slice(0, 80),
+      region: String(c.region || '').slice(0, 80),
+      country: String(c.country || '').slice(0, 80),
+      lat: +c.lat,
+      lon: +c.lon,
+    }));
+}
+
 const NO_CALENDAR_PERMISSION =
   'Google netika atļauta kalendāra lasīšana. Spied “Pieslēgties ar Google” vēlreiz un ' +
   'atļauju logā atzīmē rūtiņu “See and download any calendar you can access using your Google Calendar” ' +
@@ -242,10 +259,17 @@ function registerIpc() {
     const allowed = [
       'theme', 'bgTransparency', 'eventTransparency', 'eventOverrides', 'days',
       'alwaysOnTop', 'startWithWindows', 'selectedCalendars', 'refreshMinutes',
+      'namedaysEnabled', 'namedaysExtended', 'weatherEnabled', 'cities', 'activeCity',
     ];
     const clean = {};
     for (const k of allowed) if (k in patch) clean[k] = patch[k];
     if ('days' in clean) clean.days = Math.min(30, Math.max(1, parseInt(clean.days, 10) || 7));
+    if ('cities' in clean) clean.cities = cleanCities(clean.cities);
+    if ('cities' in clean || 'activeCity' in clean) {
+      const count = (clean.cities || store.get('cities')).length;
+      const active = parseInt('activeCity' in clean ? clean.activeCity : store.get('activeCity'), 10) || 0;
+      clean.activeCity = Math.min(Math.max(0, active), Math.max(0, count - 1));
+    }
     if ('alwaysOnTop' in clean) win.setAlwaysOnTop(!!clean.alwaysOnTop);
     if ('startWithWindows' in clean) applyLoginItem(!!clean.startWithWindows);
     return store.set(clean);
@@ -312,6 +336,31 @@ function registerIpc() {
         return { ok: false, code: 'signed_out', message: NO_CALENDAR_PERMISSION };
       }
       return { ok: false, code: e.code || null, message: e.message };
+    }
+  });
+
+  ipcMain.handle('weather:search', async (_e, query) => {
+    try {
+      return { ok: true, results: await weather.searchCities(query) };
+    } catch (e) {
+      return { ok: false, message: e.message };
+    }
+  });
+
+  ipcMain.handle('weather:get', async (_e, force) => {
+    const city = store.get('cities')[store.get('activeCity')];
+    if (!city) return { ok: false, message: 'Nav izvēlēta pilsēta' };
+    const cacheKey = `${city.lat},${city.lon}`;
+    const cached = weatherCache.get(cacheKey);
+    if (!force && cached && Date.now() - cached.at < 15 * 60 * 1000) return { ok: true, city, ...cached };
+    try {
+      const data = await weather.getForecast(city.lat, city.lon);
+      const entry = { at: Date.now(), data };
+      weatherCache.set(cacheKey, entry);
+      return { ok: true, city, ...entry };
+    } catch (e) {
+      if (cached) return { ok: true, city, stale: true, ...cached };
+      return { ok: false, city, message: `Neizdevās ielādēt laika prognozi: ${e.message}` };
     }
   });
 

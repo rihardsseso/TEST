@@ -1,6 +1,6 @@
 'use strict';
 
-/* global Agenda */
+/* global Agenda, Namedays */
 
 const $ = (id) => document.getElementById(id);
 const api = window.widget;
@@ -39,6 +39,7 @@ function show(view) {
   const inAgenda = view === 'agenda';
   $('btn-refresh').classList.toggle('hidden', !inAgenda);
   $('btn-settings').classList.toggle('hidden', !inAgenda);
+  $('infobar').classList.toggle('hidden', !inAgenda);
   if (!inAgenda) {
     closeSettings();
     closePopover();
@@ -51,7 +52,9 @@ function route() {
   else if (!state.signedIn) show('login');
   else {
     show('agenda');
+    renderInfobar();
     loadAgenda();
+    loadWeather();
   }
 }
 
@@ -149,6 +152,15 @@ function renderAgenda() {
     date.textContent = fmtDate.format(g.date);
     head.append(name, date);
     day.append(head);
+    if (state.settings.namedaysEnabled) {
+      const names = Namedays.namesFor(g.date, state.settings.namedaysExtended);
+      if (names.length && g.key !== Agenda.dayKey(now)) {
+        const nd = document.createElement('div');
+        nd.className = 'day-names';
+        nd.textContent = `Vārda dienas: ${names.join(', ')}`;
+        day.append(nd);
+      }
+    }
 
     if (!g.events.length) {
       const empty = document.createElement('div');
@@ -207,6 +219,228 @@ function renderAgenda() {
 function hasOverride(ev) {
   const o = state.settings.eventOverrides;
   return ev.id in o || (ev.seriesId && `r:${ev.seriesId}` in o);
+}
+
+// ---------- Vārda dienas un laika prognoze ----------
+
+// WMO laika apstākļu kodi (Open-Meteo) → ikona un apraksts
+const WEATHER = [
+  [[0], '☀️', '🌙', 'Skaidrs'],
+  [[1], '🌤️', '🌙', 'Pārsvarā skaidrs'],
+  [[2], '⛅', '☁️', 'Mainīgs mākoņu daudzums'],
+  [[3], '☁️', '☁️', 'Apmācies'],
+  [[45, 48], '🌫️', '🌫️', 'Migla'],
+  [[51, 53, 55], '🌦️', '🌧️', 'Smidzina'],
+  [[56, 57], '🌧️', '🌧️', 'Sasalstoša smidzināšana'],
+  [[61], '🌧️', '🌧️', 'Neliels lietus'],
+  [[63], '🌧️', '🌧️', 'Lietus'],
+  [[65], '🌧️', '🌧️', 'Stiprs lietus'],
+  [[66, 67], '🌧️', '🌧️', 'Sasalstošs lietus'],
+  [[71], '🌨️', '🌨️', 'Neliels sniegs'],
+  [[73], '🌨️', '🌨️', 'Sniegs'],
+  [[75], '❄️', '❄️', 'Stiprs sniegs'],
+  [[77], '🌨️', '🌨️', 'Sniega graudi'],
+  [[80, 81], '🌦️', '🌧️', 'Lietusgāzes'],
+  [[82], '⛈️', '⛈️', 'Stipras lietusgāzes'],
+  [[85, 86], '🌨️', '🌨️', 'Sniegputenis'],
+  [[95], '⛈️', '⛈️', 'Pērkona negaiss'],
+  [[96, 99], '⛈️', '⛈️', 'Negaiss ar krusu'],
+];
+
+function weatherInfo(code, isDay = true) {
+  const row = WEATHER.find(([codes]) => codes.includes(code));
+  if (!row) return { icon: '🌡️', text: '' };
+  return { icon: isDay ? row[1] : row[2], text: row[3] };
+}
+
+const SHORT_DAYS = ['Sv', 'Pr', 'Ot', 'Tr', 'Ce', 'Pk', 'Se'];
+const deg = (t) => (t === null || t === undefined ? '–' : `${Math.round(t)}°`);
+
+let weatherData = null; // pēdējā veiksmīgā atbilde
+
+function renderInfobar() {
+  const s = state.settings;
+  const names = s.namedaysEnabled ? Namedays.namesFor(new Date(), s.namedaysExtended) : [];
+  $('nameday').classList.toggle('hidden', !names.length);
+  $('nameday-names').textContent = names.join(', ');
+  $('weather').classList.toggle('hidden', !s.weatherEnabled || !s.cities.length);
+  renderWeather();
+}
+
+function renderWeather() {
+  const s = state.settings;
+  const city = s.cities[s.activeCity];
+  const cityBtn = $('w-city');
+  cityBtn.textContent = city ? city.name : '';
+  cityBtn.classList.toggle('multi', s.cities.length > 1);
+  cityBtn.title = s.cities.length > 1 ? 'Pārslēgt uz nākamo pilsētu' : 'Pilsētas var pievienot iestatījumos';
+
+  const w = weatherData && city && weatherData.city.lat === city.lat && weatherData.city.lon === city.lon
+    ? weatherData.data
+    : null;
+  if (!w) {
+    $('w-icon').textContent = '⏳';
+    $('w-temp').textContent = '';
+    $('w-desc').textContent = 'Ielādē…';
+    $('w-days').replaceChildren();
+    return;
+  }
+  const now = weatherInfo(w.current.code, w.current.isDay);
+  $('w-icon').textContent = now.icon;
+  $('w-temp').textContent = deg(w.current.temp);
+  const wind = w.current.wind !== undefined ? `, vējš ${Math.round(w.current.wind)} m/s` : '';
+  $('w-desc').textContent = `${now.text}, jūtas kā ${deg(w.current.feels)}${wind}`;
+
+  const box = $('w-days');
+  box.replaceChildren();
+  w.days.slice(0, 4).forEach((d, i) => {
+    const date = Agenda.parseDate(d.date);
+    const el = document.createElement('div');
+    el.className = 'w-day';
+    const info = weatherInfo(d.code);
+    el.title = info.text + (d.precip !== null ? `, nokrišņu iespēja ${d.precip}%` : '');
+    const label = document.createElement('div');
+    label.className = 'd';
+    label.textContent = i === 0 ? 'Šodien' : i === 1 ? 'Rīt' : SHORT_DAYS[date.getDay()];
+    const icon = document.createElement('div');
+    icon.className = 'i';
+    icon.textContent = info.icon;
+    const t = document.createElement('div');
+    t.className = 't';
+    const lo = document.createElement('span');
+    lo.className = 'lo';
+    lo.textContent = deg(d.min);
+    t.append(`${deg(d.max)} `, lo);
+    el.append(label, icon, t);
+    if (d.precip) {
+      const p = document.createElement('div');
+      p.className = 'p';
+      p.textContent = `💧${d.precip}%`;
+      el.append(p);
+    }
+    box.append(el);
+  });
+}
+
+let weatherLoading = false;
+async function loadWeather(force) {
+  const s = state.settings;
+  if (!s.weatherEnabled || !s.cities.length || weatherLoading) return;
+  weatherLoading = true;
+  try {
+    const r = await api.getWeather(force);
+    $('w-error').textContent = r.ok ? '' : r.message;
+    if (r.ok) weatherData = r;
+    renderWeather();
+  } finally {
+    weatherLoading = false;
+  }
+}
+
+async function nextCity() {
+  const s = state.settings;
+  if (s.cities.length < 2) return;
+  await saveSettings({ activeCity: (s.activeCity + 1) % s.cities.length });
+  renderWeather();
+  loadWeather();
+}
+
+function cityLabel(c) {
+  return [c.region, c.country].filter((x) => x && x !== c.name).join(', ');
+}
+
+function renderCitySettings() {
+  const s = state.settings;
+  const box = $('set-cities');
+  box.replaceChildren();
+  s.cities.forEach((c, i) => {
+    const row = document.createElement('label');
+    row.className = 'city-item';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'active-city';
+    radio.checked = i === s.activeCity;
+    radio.title = 'Rādīt šīs pilsētas laiku';
+    radio.addEventListener('change', async () => {
+      await saveSettings({ activeCity: i });
+      renderWeather();
+      loadWeather();
+    });
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = `${c.name} `;
+    const small = document.createElement('small');
+    small.textContent = cityLabel(c);
+    name.append(small);
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = '✕';
+    del.title = 'Noņemt pilsētu';
+    del.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const cities = s.cities.filter((_, j) => j !== i);
+      const active = i < s.activeCity ? s.activeCity - 1 : s.activeCity;
+      await saveSettings({ cities, activeCity: active });
+      renderCitySettings();
+      renderInfobar();
+      loadWeather();
+    });
+    row.append(radio, name, del);
+    box.append(row);
+  });
+  if (!s.cities.length) {
+    const p = document.createElement('p');
+    p.className = 'muted small';
+    p.textContent = 'Nav pievienotu pilsētu.';
+    box.append(p);
+  }
+}
+
+async function searchCity(e) {
+  e.preventDefault();
+  const q = $('city-query').value.trim();
+  const box = $('city-results');
+  box.replaceChildren();
+  $('city-error').textContent = '';
+  if (q.length < 2) return;
+  $('btn-city-search').disabled = true;
+  try {
+    const r = await api.searchCities(q);
+    if (!r.ok) {
+      $('city-error').textContent = `Meklēšana neizdevās: ${r.message}`;
+      return;
+    }
+    if (!r.results.length) {
+      $('city-error').textContent = 'Nekas netika atrasts.';
+      return;
+    }
+    for (const c of r.results) {
+      const row = document.createElement('div');
+      row.className = 'city-item result';
+      row.title = 'Pievienot';
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = `＋ ${c.name} `;
+      const small = document.createElement('small');
+      small.textContent = cityLabel(c);
+      name.append(small);
+      row.append(name);
+      row.addEventListener('click', async () => {
+        const s = state.settings;
+        const existing = s.cities.findIndex((x) => x.lat === c.lat && x.lon === c.lon);
+        const cities = existing >= 0 ? s.cities : [...s.cities, c];
+        await saveSettings({ cities, activeCity: existing >= 0 ? existing : cities.length - 1 });
+        $('city-query').value = '';
+        box.replaceChildren();
+        renderCitySettings();
+        renderInfobar();
+        loadWeather();
+      });
+      box.append(row);
+    }
+  } finally {
+    $('btn-city-search').disabled = false;
+  }
 }
 
 // ---------- Notikuma logs ar individuālo caurspīdīgumu ----------
@@ -272,6 +506,10 @@ function openSettings() {
   $('set-top').checked = !!s.alwaysOnTop;
   $('set-autostart').checked = !!s.startWithWindows;
   $('override-count').textContent = String(Object.keys(s.eventOverrides).length);
+  $('set-weather').checked = !!s.weatherEnabled;
+  $('set-namedays').checked = !!s.namedaysEnabled;
+  $('set-namedays-ext').checked = !!s.namedaysExtended;
+  renderCitySettings();
   renderCalendarList();
   $('settings').classList.remove('hidden');
 }
@@ -313,7 +551,10 @@ function renderCalendarList() {
 function bind() {
   $('btn-min').onclick = () => api.minimize();
   $('btn-close').onclick = () => api.close();
-  $('btn-refresh').onclick = () => loadAgenda();
+  $('btn-refresh').onclick = () => {
+    loadAgenda();
+    loadWeather(true);
+  };
   $('btn-pin').onclick = () => saveSettings({ alwaysOnTop: !state.settings.alwaysOnTop });
   $('btn-settings').onclick = () => ($('settings').classList.contains('hidden') ? openSettings() : closeSettings());
   $('btn-settings-close').onclick = closeSettings;
@@ -418,6 +659,25 @@ function bind() {
   $('set-top').onchange = (e) => saveSettings({ alwaysOnTop: e.target.checked });
   $('set-autostart').onchange = (e) => saveSettings({ startWithWindows: e.target.checked });
 
+  // Laika prognoze un vārda dienas
+  $('w-city').onclick = nextCity;
+  $('city-form').onsubmit = searchCity;
+  $('set-weather').onchange = async (e) => {
+    await saveSettings({ weatherEnabled: e.target.checked });
+    renderInfobar();
+    loadWeather();
+  };
+  const namedaysChanged = async () => {
+    await saveSettings({
+      namedaysEnabled: $('set-namedays').checked,
+      namedaysExtended: $('set-namedays-ext').checked,
+    });
+    renderInfobar();
+    renderAgenda();
+  };
+  $('set-namedays').onchange = namedaysChanged;
+  $('set-namedays-ext').onchange = namedaysChanged;
+
   // Notikuma logs
   $('btn-pop-close').onclick = closePopover;
   $('pop-range').oninput = (e) => {
@@ -480,8 +740,15 @@ async function init() {
   bind();
   route();
   scheduleRefresh();
-  // Katru minūti pārzīmē, lai "tagad"/"pagājis" un datums būtu aktuāli
-  setInterval(renderAgenda, 60 * 1000);
+  // Katru minūti pārzīmē, lai "tagad"/"pagājis", datums un vārda dienas būtu aktuāli
+  setInterval(() => {
+    renderAgenda();
+    if (state.signedIn && state.hasClient) renderInfobar();
+  }, 60 * 1000);
+  // Laika prognozi atjauno ik pēc 30 minūtēm
+  setInterval(() => {
+    if (state.signedIn && state.hasClient) loadWeather(true);
+  }, 30 * 60 * 1000);
 }
 
 init();

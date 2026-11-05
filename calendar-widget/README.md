@@ -17,6 +17,11 @@ brīdināt par nezināmu izdevēju — spied **Vairāk informācijas → Tik un 
 - **Notikumu caurspīdīgums** — noklusējuma vērtība visiem notikumiem un **individuāla katram
   notikumam**: uzklikšķini uz notikuma un pavelc slīdni. Atkārtotiem notikumiem var izvēlēties
   “Visiem šī atkārtotā notikuma datumiem”. Notikumi ar savu iestatījumu ir atzīmēti ar ◐.
+- **Vārda dienas** — šodienas vārdi logrīka augšā un katras nākamās dienas vārdi pie dienas
+  virsraksta (var ieslēgt arī paplašināto vārdu sarakstu). Strādā arī bez interneta.
+- **Laika prognoze** — tagadējā temperatūra, apraksts, vējš un 4 dienu prognoze (Open-Meteo, bez
+  maksas un bez reģistrācijas). Iestatījumos var pievienot un noņemt pilsētas; logrīkā starp tām
+  pārslēdzas, uzklikšķinot uz pilsētas nosaukuma (⇄).
 - 1–30 dienu skats, kalendāru izvēle, tumša/gaiša tēma, “vienmēr virspusē” (📌), palaišana kopā ar
   Windows, automātiska atjaunošana ik pēc 5 min (vai F5).
 - Logu var pārvilkt aiz virsraksta un mainīt izmēru ar labo apakšējo stūri; pozīcija tiek atcerēta.

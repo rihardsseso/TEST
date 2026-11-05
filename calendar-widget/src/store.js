@@ -17,6 +17,11 @@ const DEFAULTS = {
   // null = rādīt visus kalendārus, kas Google kalendārā ir atzīmēti
   selectedCalendars: null,
   refreshMinutes: 5,
+  namedaysEnabled: true,
+  namedaysExtended: false,
+  weatherEnabled: true,
+  cities: [{ name: 'Rīga', region: '', country: 'Latvija', lat: 56.946, lon: 24.1059 }],
+  activeCity: 0,
 };
 
 class Store {

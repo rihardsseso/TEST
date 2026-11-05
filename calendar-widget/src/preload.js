@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('widget', {
   signIn: () => ipcRenderer.invoke('auth:signIn'),
   signOut: () => ipcRenderer.invoke('auth:signOut'),
   getAgenda: () => ipcRenderer.invoke('agenda:get'),
+  getWeather: (force) => ipcRenderer.invoke('weather:get', !!force),
+  searchCities: (query) => ipcRenderer.invoke('weather:search', String(query)),
   openLink: (url) => ipcRenderer.send('open:link', url),
   minimize: () => ipcRenderer.send('win:minimize'),
   close: () => ipcRenderer.send('win:close'),
