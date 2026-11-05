@@ -494,6 +494,42 @@ function applyPopTransparency(value) {
   popSaveTimer = setTimeout(() => saveSettings({ eventOverrides: state.settings.eventOverrides }), 300);
 }
 
+// ---------- Blūrētais darbvirsmas fons ----------
+
+let backdropPos = null; // { x, y, width, height, tile } attiecībā pret logu
+let backdropLoaded = false;
+
+function applyBlur() {
+  const blur = state.settings.bgBlur || 0;
+  document.documentElement.style.setProperty('--blur-px', `${blur}px`);
+  $('backdrop').classList.toggle('hidden', !blur || !backdropLoaded);
+  positionBackdrop();
+}
+
+function positionBackdrop() {
+  if (!backdropPos) return;
+  const pad = (state.settings.bgBlur || 0) * 2;
+  const el = $('backdrop-img');
+  el.style.backgroundSize = `${backdropPos.width}px ${backdropPos.height}px`;
+  el.style.backgroundPosition = `${backdropPos.x + pad}px ${backdropPos.y + pad}px`;
+  el.style.backgroundRepeat = backdropPos.tile ? 'repeat' : 'no-repeat';
+}
+
+async function loadBackdrop() {
+  if (!state.settings.bgBlur) {
+    applyBlur();
+    return;
+  }
+  const r = await api.getBackdrop();
+  backdropLoaded = r.ok;
+  $('backdrop-msg').textContent = r.ok ? '' : r.message;
+  if (r.ok) {
+    $('backdrop-img').style.backgroundImage = `url("${r.dataUrl}")`;
+    backdropPos = r.pos;
+  }
+  applyBlur();
+}
+
 // ---------- Fona gradienta redaktors (kā Photoshop) ----------
 
 let grad = null; // rediģējamā kopija
@@ -658,6 +694,9 @@ function openSettings() {
   const s = state.settings;
   $('set-email').textContent = state.email || '';
   $('set-email').title = state.email || '';
+  $('set-blur').value = String(s.bgBlur || 0);
+  $('out-blur').textContent = s.bgBlur ? `${s.bgBlur} px` : 'Izslēgts';
+  loadBackdrop(); // fona attēls varēja mainīties
   $('set-bg').value = String(Math.round(s.bgTransparency * 100));
   $('out-bg').textContent = pct(s.bgTransparency);
   $('set-ev').value = String(Math.round(s.eventTransparency * 100));
@@ -799,6 +838,17 @@ function bind() {
     clearTimeout(bgTimer);
     bgTimer = setTimeout(() => saveSettings({ bgTransparency: v }), 250);
   };
+  let blurTimer;
+  $('set-blur').oninput = (e) => {
+    const v = Number(e.target.value);
+    const wasOff = !state.settings.bgBlur;
+    state.settings = { ...state.settings, bgBlur: v };
+    $('out-blur').textContent = v ? `${v} px` : 'Izslēgts';
+    if (wasOff && v) loadBackdrop();
+    else applyBlur();
+    clearTimeout(blurTimer);
+    blurTimer = setTimeout(() => saveSettings({ bgBlur: v }), 250);
+  };
   let evTimer;
   $('set-ev').oninput = (e) => {
     const v = Number(e.target.value) / 100;
@@ -902,6 +952,11 @@ async function init() {
   Object.assign(state, s);
   applyAppearance();
   bind();
+  api.onBackdropPos((pos) => {
+    backdropPos = pos;
+    positionBackdrop();
+  });
+  loadBackdrop();
   route();
   scheduleRefresh();
   // Katru minūti pārzīmē, lai "tagad"/"pagājis", datums un vārda dienas būtu aktuāli
@@ -909,6 +964,8 @@ async function init() {
     renderAgenda();
     if (state.signedIn && state.hasClient) renderInfobar();
   }, 60 * 1000);
+  // Pārbauda, vai nav mainīts darbvirsmas fona attēls
+  setInterval(loadBackdrop, 10 * 60 * 1000);
   // Laika prognozi atjauno ik pēc 30 minūtēm
   setInterval(() => {
     if (state.signedIn && state.hasClient) loadWeather(true);

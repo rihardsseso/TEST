@@ -24,6 +24,8 @@ const DEFAULTS = {
   cities: [{ name: 'Rīga', region: '', country: 'Latvija', lat: 56.946, lon: 24.1059 }],
   activeCity: 0,
   bgGradient: Gradient.normalize(Gradient.DEFAULT),
+  // Darbvirsmas fona blūrs pikseļos (0 = izslēgts)
+  bgBlur: 12,
 };
 
 class Store {

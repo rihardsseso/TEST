@@ -1,12 +1,13 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog, screen, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Store } = require('./store');
 const google = require('./google');
 const weather = require('./weather');
 const Gradient = require('./renderer/gradient');
+const { findWallpaper, wallpaperRect } = require('./wallpaper');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -154,6 +155,60 @@ async function fetchAgenda() {
   };
 }
 
+// ---------- Blūrētais darbvirsmas fons ----------
+
+let backdrop = null; // { dataUrl, width, height, style }
+
+async function loadBackdrop() {
+  const wp = await findWallpaper();
+  if (!wp) return null;
+  let img = nativeImage.createFromPath(wp.file);
+  if (img.isEmpty()) {
+    // TranscodedWallpaper failam nav paplašinājuma
+    try {
+      img = nativeImage.createFromBuffer(fs.readFileSync(wp.file));
+    } catch {
+      return null;
+    }
+  }
+  if (img.isEmpty()) return null;
+  const size = img.getSize();
+  // Blūrētam fonam pilna izšķirtspēja nav vajadzīga
+  const small = size.width > 1600 ? img.resize({ width: 1600, quality: 'good' }) : img;
+  return {
+    dataUrl: `data:image/jpeg;base64,${small.toJPEG(85).toString('base64')}`,
+    width: size.width,
+    height: size.height,
+    style: wp.style,
+  };
+}
+
+// Fona attēla novietojums attiecībā pret logrīka loga augšējo kreiso stūri
+function backdropPos() {
+  if (!backdrop || !win || win.isDestroyed()) return null;
+  const b = win.getBounds();
+  const display = screen.getDisplayMatching(b);
+  const all = screen.getAllDisplays().map((d) => d.bounds);
+  const left = Math.min(...all.map((d) => d.x));
+  const top = Math.min(...all.map((d) => d.y));
+  const virtual = {
+    x: left,
+    y: top,
+    width: Math.max(...all.map((d) => d.x + d.width)) - left,
+    height: Math.max(...all.map((d) => d.y + d.height)) - top,
+  };
+  // Centrētam un flīzētam fonam izmēru nosaka attēla pikseļi, ne monitora izmērs
+  const k = ['center', 'tile'].includes(backdrop.style) ? display.scaleFactor || 1 : 1;
+  const img = { width: backdrop.width / k, height: backdrop.height / k };
+  const r = wallpaperRect(backdrop.style, img, display.bounds, virtual);
+  return { x: r.x - b.x, y: r.y - b.y, width: r.width, height: r.height, tile: !!r.tile };
+}
+
+function sendBackdropPos() {
+  if (!backdrop || !store.get('bgBlur') || !win || win.isDestroyed()) return;
+  win.webContents.send('backdrop:pos', backdropPos());
+}
+
 // ---------- Logs ----------
 
 function visibleBounds(b) {
@@ -200,6 +255,8 @@ function createWindow() {
   win.on('moved', rememberBounds);
   win.on('move', rememberBounds);
   win.on('resize', rememberBounds);
+  win.on('move', sendBackdropPos);
+  win.on('resize', sendBackdropPos);
 
   // Saites atver sistēmas pārlūkā, nevis logrīkā
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -261,11 +318,12 @@ function registerIpc() {
       'theme', 'bgTransparency', 'eventTransparency', 'eventOverrides', 'days',
       'alwaysOnTop', 'startWithWindows', 'selectedCalendars', 'refreshMinutes',
       'namedaysEnabled', 'namedaysExtended', 'weatherEnabled', 'cities', 'activeCity',
-      'bgGradient',
+      'bgGradient', 'bgBlur',
     ];
     const clean = {};
     for (const k of allowed) if (k in patch) clean[k] = patch[k];
     if ('days' in clean) clean.days = Math.min(30, Math.max(1, parseInt(clean.days, 10) || 7));
+    if ('bgBlur' in clean) clean.bgBlur = Math.min(40, Math.max(0, Math.round(Number(clean.bgBlur) || 0)));
     if ('bgGradient' in clean) clean.bgGradient = Gradient.normalize(clean.bgGradient);
     if ('cities' in clean) clean.cities = cleanCities(clean.cities);
     if ('cities' in clean || 'activeCity' in clean) {
@@ -342,6 +400,18 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('backdrop:get', async () => {
+    try {
+      backdrop = await loadBackdrop();
+    } catch {
+      backdrop = null;
+    }
+    if (!backdrop) {
+      return { ok: false, message: 'Darbvirsmas fona attēls netika atrasts (vienkrāsainam fonam blūrs nav redzams).' };
+    }
+    return { ok: true, dataUrl: backdrop.dataUrl, pos: backdropPos() };
+  });
+
   ipcMain.handle('weather:search', async (_e, query) => {
     try {
       return { ok: true, results: await weather.searchCities(query) };
@@ -387,6 +457,9 @@ app.whenReady().then(() => {
   auth = loadAuth();
   registerIpc();
   createWindow();
+  for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) {
+    screen.on(ev, sendBackdropPos);
+  }
 });
 
 app.on('second-instance', () => {

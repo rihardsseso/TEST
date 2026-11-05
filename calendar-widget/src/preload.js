@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('widget', {
   getAgenda: () => ipcRenderer.invoke('agenda:get'),
   getWeather: (force) => ipcRenderer.invoke('weather:get', !!force),
   searchCities: (query) => ipcRenderer.invoke('weather:search', String(query)),
+  getBackdrop: () => ipcRenderer.invoke('backdrop:get'),
+  onBackdropPos: (cb) => ipcRenderer.on('backdrop:pos', (_e, pos) => cb(pos)),
   openLink: (url) => ipcRenderer.send('open:link', url),
   minimize: () => ipcRenderer.send('win:minimize'),
   close: () => ipcRenderer.send('win:close'),

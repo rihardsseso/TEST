@@ -16,6 +16,9 @@ brīdināt par nezināmu izdevēju — spied **Vairāk informācijas → Tik un 
 - **Gradienta fons** ar redaktoru kā Photoshop — 8 gatavi paraugi; uz joslas var pievienot krāsu
   punktus, vilkt tos, mainīt katra krāsu un necaurspīdīgumu, izvēlēties lineāru, radiālu vai konisku
   gradientu un leņķi. Gradientu var arī izslēgt, tad fons ir vienkrāsains.
+- **Fona blūrs** (0–40 px) — aiz logrīka tiek parādīts noblūrēts darbvirsmas fona attēls (kā matēts
+  stikls). Logrīks to novieto precīzi aiz sevis un pārvieto kopā ar logu. Tiek blūrēts tieši
+  darbvirsmas fona attēls, nevis citi logi aiz logrīka; vienkrāsainam fonam efekta nav.
 - **Fona caurspīdīgums** (0–100 %) — kad fons ir gandrīz caurspīdīgs, tekstam tiek pievienota ēna.
 - **Notikumu caurspīdīgums** — noklusējuma vērtība visiem notikumiem un **individuāla katram
   notikumam**: uzklikšķini uz notikuma un pavelc slīdni. Atkārtotiem notikumiem var izvēlēties

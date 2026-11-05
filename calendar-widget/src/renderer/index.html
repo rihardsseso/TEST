@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Blūrētais darbvirsmas fona attēls aiz logrīka -->
+  <div id="backdrop" class="hidden"><div id="backdrop-img"></div></div>
   <div id="frame">
     <header id="titlebar">
       <div class="title">
@@ -103,6 +105,12 @@
         <label>Fona caurspīdīgums <output id="out-bg"></output>
           <input id="set-bg" type="range" min="0" max="100" step="1">
         </label>
+        <label>Fona blūrs <output id="out-blur"></output>
+          <input id="set-blur" type="range" min="0" max="40" step="1">
+        </label>
+        <p class="muted small">Blūrē darbvirsmas fona attēlu aiz logrīka. Tas redzams caur caurspīdīgo
+          fonu — ja to neredzi, palielini fona caurspīdīgumu.</p>
+        <p id="backdrop-msg" class="error small"></p>
         <label>Notikumu caurspīdīgums (noklusējums) <output id="out-ev"></output>
           <input id="set-ev" type="range" min="0" max="90" step="1">
         </label>
